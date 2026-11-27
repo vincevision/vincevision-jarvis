@@ -82,6 +82,27 @@ python doctor.py --json   # machine-readable
 It checks Python version, assets, runtime dirs, API keys, optional configs,
 and dependencies — and tells you exactly how to fix each gap.
 
+### 🗑️ `uninstall.py` — clean removal
+
+Reverses everything the installer created (desktop shortcuts, autostart, the
+global `jarvis` command, app-menu entry, icon, sudoers rules) plus JARVIS's
+local secrets and runtime data. **Safe by default:**
+
+```bash
+python uninstall.py                 # show the plan, ask before deleting
+python uninstall.py --dry-run       # show the plan, delete nothing
+python uninstall.py --yes           # remove without prompting
+python uninstall.py --keep-data     # keep secrets/memory/reports/sessions
+python uninstall.py --integrations-only   # only shortcuts/commands/sudoers
+```
+
+- **Dry-run in non-interactive shells** — nothing is deleted unless you confirm
+  or pass `--yes`.
+- **Never deletes the repo source or `.git`** — it prints the optional `rm -rf`
+  command for that at the end, so you stay in control.
+- System files that need root are skipped with a ready-to-run `sudo rm` command
+  when you're not root.
+
 ---
 
 ## 🔑 Configuration
