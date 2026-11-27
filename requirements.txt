@@ -1,18 +1,23 @@
-﻿# ═══════════════════════════════════════════════════════════════════
-#  JARVIS — Python Dependencies
+# ═══════════════════════════════════════════════════════════════════
+#  VINCEVISION — Python Dependencies
 #  Install:        pip install -r requirements.txt
 #  Auto-managed:  Edit core/dependency_manager.py to add new packages
+#
+#  NOTE: `pathlib` and `asyncio` are Python standard library modules.
+#  They were previously listed here as pip packages, which installs
+#  ancient/broken backports. Removed. Do not re-add them.
 # ═══════════════════════════════════════════════════════════════════
 
 # ── Core AI ───────────────────────────────────────────────────────
 google-genai
-google-generativeai
+google-generativeai>=0.8.0
 openai
-groq
+groq>=0.9.0
 
 # ── Audio ─────────────────────────────────────────────────────────
-sounddevice
+sounddevice>=0.5.0
 pyaudio
+pydub>=0.25.1
 
 # ── UI ────────────────────────────────────────────────────────────
 pyqt6
@@ -22,17 +27,22 @@ Pillow>=10.0.0
 playwright>=1.40.0
 pyautogui>=0.9.54
 pyperclip>=1.8.2
+selenium>=4.15.0
+undetected-chromedriver>=3.5.0
+webdriver-manager
+gologin>=1.1.0
 
 # ── Computer Vision ───────────────────────────────────────────────
 opencv-python>=4.8.0
-numpy>=1.24.0
+numpy>=1.26.0
 mss>=9.0.0
 
 # ── Web & Search ──────────────────────────────────────────────────
-requests>=2.31.0
+requests>=2.32.0
 beautifulsoup4>=4.12.0
 duckduckgo-search
 lxml>=4.9.0
+aiohttp>=3.9.0
 
 # ── File Processing ───────────────────────────────────────────────
 python-pptx
@@ -44,8 +54,8 @@ openpyxl>=3.1.0
 pytesseract>=0.3.10
 
 # ── System ────────────────────────────────────────────────────────
-psutil
-pathlib
+psutil>=6.0.0
+tqdm>=4.66.0
 
 # ── Telegram Bot & Lookup ─────────────────────────────────────────
 python-telegram-bot>=20.0
@@ -74,7 +84,7 @@ scapy>=2.5.0
 
 # ── Bluetooth ─────────────────────────────────────────────────────
 bleak
-bleak-winrt;          sys_platform == "win32"
+bleak-winrt; sys_platform == "win32"
 
 # ── Smart Home (optional — uncomment if needed) ───────────────────
 # paho-mqtt>=1.6.0
@@ -83,52 +93,20 @@ bleak-winrt;          sys_platform == "win32"
 # ── Crypto / Credentials ──────────────────────────────────────────
 cryptography
 
-# ── Email (uses stdlib imaplib/smtplib + IMAP enhancements) ───────
+# ── Email ─────────────────────────────────────────────────────────
 imapclient>=3.0.0
 
-# ── Offensive Security — Core ─────────────────────────────────────
+# ── Security tooling deps ─────────────────────────────────────────
 pynput>=1.7.6
 stem>=1.8.1
 holehe>=1.7.0
 h8mail>=2.5.0
 sherlock-project
-
-# ── Offensive Security — Platform Specific ────────────────────────
-evdev;                          sys_platform == "linux"
-pyobjc-framework-Quartz;        sys_platform == "darwin"
-pyobjc-framework-CoreWLAN;      sys_platform == "darwin"
-
-# ── TikTok Agent ──────────────────────────────────────────────────
-selenium>=4.15.0
-undetected-chromedriver>=3.5.0
+evdev; sys_platform == "linux"
+pyobjc-framework-Quartz; sys_platform == "darwin"
+pyobjc-framework-CoreWLAN; sys_platform == "darwin"
 
 # ── Misc Networking ───────────────────────────────────────────────
 paramiko
 netaddr
 impacket
-
-# === Core dependencies for github_agent + Mega + Cross-platform support ===
-requests>=2.32.0
-psutil>=6.0.0
-tqdm>=4.66.0
-python-dotenv>=1.0.0
-
-# === Already used by your main JARVIS system (recommended to keep) ===
-google-generativeai>=0.8.0
-groq>=0.9.0
-sounddevice>=0.5.0
-pillow>=10.0.0
-pyautogui>=0.9.54
-opencv-python>=4.8.0
-numpy>=1.26.0
-pydub>=0.25.1
-pyperclip>=1.8.0
-webdriver-manager
-
-playwright>=1.40.0
-gologin>=1.1.0
-requests>=2.31.0
-Pillow>=10.0.0
-aiohttp>=3.9.0
-python-dotenv>=1.0.0
-asyncio>=3.4.3

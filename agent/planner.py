@@ -1,17 +1,25 @@
+"""
+planner.py — VINCEVISION Brain 2.0
+──────────────────────────────────
+Goal → multi-step plan with DATA FLOW between steps.
+
+Upgrade over the original planner:
+  * Steps may reference earlier outputs with {{stepN}} placeholders.
+  * Up to 8 steps (was 5), with explicit depends_on edges.
+  * The plan carries success_criteria used by the executor's self-verification.
+  * All LLM calls go through core.ai_router (correct google-genai SDK +
+    automatic Gemini → Groq fallback). The previous code called the legacy
+    `genai.configure` / `GenerativeModel` API through the new SDK import,
+    which silently failed and collapsed every plan to a single web_search.
+"""
+
 import json
 import re
-import sys
-from pathlib import Path
 
+from core.ai_router import ask_ai
 
-def get_base_dir() -> Path:
-    if getattr(sys, "frozen", False):
-        return Path(sys.executable).parent
-    return Path(__file__).resolve().parent.parent
-
-
-BASE_DIR        = get_base_dir()
-API_CONFIG_PATH = BASE_DIR / "config" / "api_keys.json"
+MAX_STEPS = 8
+_REF_RE = re.compile(r"\{\{\s*step\s*(\d+)\s*\}\}", re.IGNORECASE)
 
 
 PLANNER_PROMPT = """You are the planning module of VINCEVISION, a personal AI assistant.
@@ -19,10 +27,17 @@ Your job: break any user goal into a sequence of steps using ONLY the tools list
 
 ABSOLUTE RULES:
 - NEVER use generated_code or write Python scripts. It does not exist.
-- NEVER reference previous step results in parameters. Every step is independent.
 - Use web_search for ANY information retrieval, research, or current data.
 - Use file_controller to save content to disk.
-- Max 5 steps. Use the minimum steps needed.
+- Max 8 steps. Use the minimum steps needed.
+
+DATA FLOW (important):
+- A step MAY use the output of an EARLIER step by writing {{stepN}} inside any
+  string parameter, where N is that earlier step's number.
+- Example: step 3 writes a file whose content is "{{step1}}\n\n{{step2}}".
+- Only reference steps that come BEFORE the current step. Never self-reference.
+- List the steps you depend on in "depends_on".
+- Prefer passing real results forward over writing placeholder text.
 
 AVAILABLE TOOLS AND THEIR PARAMETERS:
 
@@ -53,7 +68,7 @@ file_controller
   action: "write" | "create_file" | "read" | "list" | "delete" | "move" | "copy" | "find" | "disk_usage" (required)
   path: string — use "desktop" for Desktop folder
   name: string — filename
-  content: string — file content (for write/create_file)
+  content: string — file content (for write/create_file); may contain {{stepN}}
 
 computer_settings
   action: string (required)
@@ -75,7 +90,7 @@ screen_process
 
 send_message
   receiver: string (required)
-  message_text: string (required)
+  message_text: string (required); may contain {{stepN}}
   platform: string (required)
 
 reminder
@@ -110,108 +125,188 @@ code_helper
 dev_agent
   description: string (required)
   language: string (optional)
+
 EXAMPLES:
 
 Goal: "research mechanical engineering and save it to a notepad file"
-Steps:
+{
+  "goal": "research mechanical engineering and save it to a notepad file",
+  "success_criteria": "A desktop file exists containing real research about mechanical engineering",
+  "steps": [
+    {"step": 1, "tool": "web_search", "description": "Research overview", "parameters": {"query": "mechanical engineering overview definition history"}, "critical": true, "depends_on": []},
+    {"step": 2, "tool": "web_search", "description": "Research applications", "parameters": {"query": "mechanical engineering applications and future trends"}, "critical": true, "depends_on": []},
+    {"step": 3, "tool": "file_controller", "description": "Save combined research", "parameters": {"action": "write", "path": "desktop", "name": "mechanical_engineering.txt", "content": "MECHANICAL ENGINEERING RESEARCH\n\n{{step1}}\n\n{{step2}}"}, "critical": true, "depends_on": [1, 2]}
+  ]
+}
 
-web_search | query: "mechanical engineering overview definition history"
-web_search | query: "mechanical engineering applications and future trends"
-file_controller | action: write, path: desktop, name: mechanical_engineering.txt, content: "MECHANICAL ENGINEERING RESEARCH\n\nThis file will be filled with web research results."
+Goal: "find the weather in Nairobi and message it to John on WhatsApp"
+{
+  "goal": "find the weather in Nairobi and message it to John on WhatsApp",
+  "success_criteria": "John receives a WhatsApp message containing the Nairobi weather",
+  "steps": [
+    {"step": 1, "tool": "weather_report", "description": "Get Nairobi weather", "parameters": {"city": "Nairobi"}, "critical": true, "depends_on": []},
+    {"step": 2, "tool": "send_message", "description": "Send weather to John", "parameters": {"receiver": "John", "message_text": "Nairobi weather: {{step1}}", "platform": "WhatsApp"}, "critical": true, "depends_on": [1]}
+  ]
+}
 
 Goal: "What is the price of Bitcoin"
-Steps:
-
-web_search | query: "Bitcoin price today USD"
-
-Goal: "List the files on the desktop and find the largest 5 files"
-Steps:
-
-file_controller | action: list, path: desktop
-file_controller | action: largest, path: desktop, count: 5
-
-Goal: "Install PUBG from Steam"
-Steps:
-
-game_updater | action: install, platform: steam, game_name: "PUBG"
-
-Goal: "Update all my Steam games"
-Steps:
-
-game_updater | action: update, platform: steam
-
-Goal: "Send John a message on WhatsApp saying there is a meeting tomorrow"
-Steps:
-
-send_message | receiver: John, message_text: "There is a meeting tomorrow", platform: WhatsApp
-
-Goal: "Open the clock and set a reminder for 30 minutes later"
-Steps:
-
-reminder | date: [today], time: [now+30min], message: "Reminder"
+{
+  "goal": "What is the price of Bitcoin",
+  "success_criteria": "The current Bitcoin price is retrieved",
+  "steps": [
+    {"step": 1, "tool": "web_search", "description": "Bitcoin price", "parameters": {"query": "Bitcoin price today USD"}, "critical": true, "depends_on": []}
+  ]
+}
 
 OUTPUT — return ONLY valid JSON, no markdown, no explanation, no code blocks:
 {
   "goal": "...",
+  "success_criteria": "one sentence describing what must be true for the goal to be met",
   "steps": [
     {
       "step": 1,
       "tool": "tool_name",
       "description": "what this step does",
       "parameters": {},
-      "critical": true
+      "critical": true,
+      "depends_on": []
     }
   ]
 }
 """
 
 
-def _get_api_key() -> str:
-    with open(API_CONFIG_PATH, "r", encoding="utf-8") as f:
-        return json.load(f)["gemini_api_key"]
+# ════════════════════════════════════════════════════════════════
+# Pure helpers (unit-tested offline)
+# ════════════════════════════════════════════════════════════════
 
+def _extract_json(text: str) -> dict:
+    """Robustly pull a JSON object out of an LLM response."""
+    if not text:
+        raise ValueError("empty response")
+    cleaned = re.sub(r"```(?:json)?", "", text).strip().rstrip("`").strip()
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+    start, end = cleaned.find("{"), cleaned.rfind("}")
+    if start != -1 and end > start:
+        return json.loads(cleaned[start:end + 1])
+    raise ValueError("no JSON object found in response")
+
+
+def _find_refs(obj) -> set:
+    """All {{stepN}} numbers referenced anywhere in a parameter tree."""
+    found = set()
+    if isinstance(obj, str):
+        found.update(int(m) for m in _REF_RE.findall(obj))
+    elif isinstance(obj, dict):
+        for v in obj.values():
+            found.update(_find_refs(v))
+    elif isinstance(obj, list):
+        for v in obj:
+            found.update(_find_refs(v))
+    return found
+
+
+def _strip_invalid_refs(obj, current_step: int):
+    """Remove references to non-earlier steps (self/forward refs)."""
+    def fix(s: str) -> str:
+        def repl(m):
+            n = int(m.group(1))
+            return m.group(0) if 1 <= n < current_step else ""
+        return _REF_RE.sub(repl, s)
+
+    if isinstance(obj, str):
+        return fix(obj)
+    if isinstance(obj, dict):
+        return {k: _strip_invalid_refs(v, current_step) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [_strip_invalid_refs(v, current_step) for v in obj]
+    return obj
+
+
+def _normalize_plan(plan: dict, goal: str) -> dict:
+    """Validate / repair a raw plan. Raises ValueError if unusable."""
+    if not isinstance(plan, dict):
+        raise ValueError("plan is not an object")
+    steps = plan.get("steps")
+    if not isinstance(steps, list) or not steps:
+        raise ValueError("plan has no steps")
+
+    normalized = []
+    for raw in steps[:MAX_STEPS]:
+        if not isinstance(raw, dict):
+            continue
+        tool = str(raw.get("tool") or "").strip()
+        desc = str(raw.get("description") or "").strip()
+        if not tool:
+            continue
+        if tool == "generated_code":
+            tool = "web_search"
+            raw = {**raw, "parameters": {"query": (desc or goal)[:200]}}
+
+        num = len(normalized) + 1
+        params = raw.get("parameters")
+        if not isinstance(params, dict):
+            params = {}
+        params = _strip_invalid_refs(params, num)
+
+        deps = raw.get("depends_on") or []
+        if not isinstance(deps, list):
+            deps = []
+        deps = {int(d) for d in deps if isinstance(d, (int, float)) and 1 <= int(d) < num}
+        deps.update(n for n in _find_refs(params) if 1 <= n < num)
+
+        normalized.append({
+            "step":        num,
+            "tool":        tool,
+            "description": desc,
+            "parameters":  params,
+            "critical":    bool(raw.get("critical", True)),
+            "depends_on":  sorted(deps),
+        })
+
+    if not normalized:
+        raise ValueError("no usable steps after normalization")
+
+    return {
+        "goal":             str(plan.get("goal") or goal),
+        "success_criteria": str(plan.get("success_criteria") or goal),
+        "steps":            normalized,
+    }
+
+
+def _log_plan(plan: dict, label: str = "Plan") -> None:
+    print(f"[Planner] ✅ {label}: {len(plan['steps'])} steps")
+    for s in plan["steps"]:
+        deps = f" (needs {s['depends_on']})" if s["depends_on"] else ""
+        print(f"  Step {s['step']}: [{s['tool']}] {s['description']}{deps}")
+
+
+# ════════════════════════════════════════════════════════════════
+# Public API
+# ════════════════════════════════════════════════════════════════
 
 def create_plan(goal: str, context: str = "") -> dict:
-    import google.genai as genai
-
-    genai.configure(api_key=_get_api_key())
-    model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash-lite",
-        system_instruction=PLANNER_PROMPT
-    )
-
     user_input = f"Goal: {goal}"
     if context:
-        user_input += f"\n\nContext: {context}"
+        user_input += f"\n\nContext (long-term memory / prior experience):\n{context}"
+
+    res = ask_ai(
+        user_input, system=PLANNER_PROMPT,
+        preferred="gemini", temperature=0.2, max_tokens=4096,
+    )
+    if not res["success"]:
+        print(f"[Planner] ⚠️ Planning failed: {res['error']}")
+        return _fallback_plan(goal)
 
     try:
-        response = model.generate_content(user_input)
-        text     = response.text.strip()
-        text     = re.sub(r"```(?:json)?", "", text).strip().rstrip("`").strip()
-
-        plan = json.loads(text)
-
-        if "steps" not in plan or not isinstance(plan["steps"], list):
-            raise ValueError("Invalid plan structure")
-
-        for step in plan["steps"]:
-            if step.get("tool") in ("generated_code",):
-                print(f"[Planner] ⚠️ generated_code detected in step {step.get('step')} — replacing with web_search")
-                desc = step.get("description", goal)
-                step["tool"] = "web_search"
-                step["parameters"] = {"query": desc[:200]}
-
-        print(f"[Planner] ✅ Plan: {len(plan['steps'])} steps")
-        for s in plan["steps"]:
-            print(f"  Step {s['step']}: [{s['tool']}] {s['description']}")
-
+        plan = _normalize_plan(_extract_json(res["text"]), goal)
+        _log_plan(plan)
         return plan
-
-    except json.JSONDecodeError as e:
-        print(f"[Planner] ⚠️ JSON parse failed: {e}")
-        return _fallback_plan(goal)
     except Exception as e:
-        print(f"[Planner] ⚠️ Planning failed: {e}")
+        print(f"[Planner] ⚠️ Plan parse failed: {e}")
         return _fallback_plan(goal)
 
 
@@ -219,31 +314,30 @@ def _fallback_plan(goal: str) -> dict:
     print("[Planner] 🔄 Fallback plan")
     return {
         "goal": goal,
+        "success_criteria": goal,
         "steps": [
             {
                 "step": 1,
                 "tool": "web_search",
                 "description": f"Search for: {goal}",
                 "parameters": {"query": goal},
-                "critical": True
+                "critical": True,
+                "depends_on": [],
             }
-        ]
+        ],
     }
 
 
-def replan(goal: str, completed_steps: list, failed_step: dict, error: str) -> dict:
-    import google.genai as genai
-
-    genai.configure(api_key=_get_api_key())
-    model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
-        system_instruction=PLANNER_PROMPT
-    )
-
+def replan(
+    goal: str,
+    completed_steps: list,
+    failed_step: dict,
+    error: str,
+    feedback: str = "",
+) -> dict:
     completed_summary = "\n".join(
-        f"  - Step {s['step']} ({s['tool']}): DONE" for s in completed_steps
+        f"  - Step {s.get('step')} ({s.get('tool')}): DONE" for s in (completed_steps or [])
     )
-
     prompt = f"""Goal: {goal}
 
 Already completed:
@@ -253,20 +347,21 @@ Failed step: [{failed_step.get('tool')}] {failed_step.get('description')}
 Error: {error}
 
 Create a REVISED plan for the remaining work only. Do not repeat completed steps."""
+    if feedback:
+        prompt += f"\n\nAdditional feedback:\n{feedback}"
+
+    res = ask_ai(
+        prompt, system=PLANNER_PROMPT,
+        preferred="gemini", temperature=0.3, max_tokens=4096,
+    )
+    if not res["success"]:
+        print(f"[Planner] ⚠️ Replan failed: {res['error']}")
+        return _fallback_plan(goal)
 
     try:
-        response = model.generate_content(prompt)
-        text     = response.text.strip()
-        text     = re.sub(r"```(?:json)?", "", text).strip().rstrip("`").strip()
-        plan     = json.loads(text)
-
-        for step in plan.get("steps", []):
-            if step.get("tool") == "generated_code":
-                step["tool"] = "web_search"
-                step["parameters"] = {"query": step.get("description", goal)[:200]}
-
-        print(f"[Planner] 🔄 Revised plan: {len(plan['steps'])} steps")
+        plan = _normalize_plan(_extract_json(res["text"]), goal)
+        _log_plan(plan, "Revised plan")
         return plan
     except Exception as e:
-        print(f"[Planner] ⚠️ Replan failed: {e}")
+        print(f"[Planner] ⚠️ Replan parse failed: {e}")
         return _fallback_plan(goal)

@@ -50,8 +50,18 @@ import sounddevice as sd
 from google import genai
 from google.genai import types
 from ui import JarvisUI
-from memory.memory_manager import (
-    load_memory, update_memory, format_memory_for_prompt,
+try:
+    from memory.memory_manager import (
+        load_memory, update_memory, format_memory_for_prompt,
+    )
+except ImportError:  # fresh clone: private memory/ package is gitignored
+    from core.long_term_memory import (
+        load_memory, update_memory, format_memory_for_prompt,
+    )
+from core.long_term_memory import (
+    remember as lt_remember, recall as lt_recall,
+    get_preferences as lt_preferences, recent as lt_recent,
+    format_for_prompt as lt_format,
 )
 
 from actions.file_processor    import file_processor
@@ -1448,6 +1458,20 @@ TOOL_DECLARATIONS = [
         }
     },
 
+    # ── Recall Memory (Brain 2.0) ─────────────────────────────────────────────
+    {
+        "name": "recall_memory",
+        "description": "Search long-term memory for past facts, preferences, or previous task results. Use when the user asks what you remember or references earlier context.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "query": {"type": "STRING"},
+                "limit": {"type": "INTEGER"},
+            },
+            "required": ["query"]
+        }
+    },
+
     # ── Email Agent ───────────────────────────────────────────────────────────
     {
         "name": "email_agent",
@@ -1701,6 +1725,11 @@ class JarvisLive:
         )
         parts = [time_ctx]
         if mem_str: parts.append(mem_str)
+        try:
+            lt_mem = lt_format(lt_preferences(limit=10) + lt_recent(limit=5))
+            if lt_mem: parts.append(lt_mem)
+        except Exception:
+            pass
         parts.append(sys_prompt)
 
         compressed = _compress_tool_declarations(TOOL_DECLARATIONS)
@@ -1733,11 +1762,34 @@ class JarvisLive:
             key, value = args.get("key", ""), args.get("value", "")
             if key and value:
                 update_memory({category: {key: {"value": value}}})
+                try:
+                    lt_remember(f"{key}: {value}", kind="preference",
+                                category=category, key=key, source="voice",
+                                importance=0.8)
+                except Exception:
+                    pass
                 print(f"[Memory] 💾 {category}/{key} = {value}")
             if not self.ui.muted: self.ui.set_state("LISTENING")
             return types.FunctionResponse(
                 id=fc.id, name=name,
                 response={"result": "ok", "silent": True}
+            )
+
+        if name == "recall_memory":
+            query = args.get("query", "")
+            try:
+                limit = int(args.get("limit", 5) or 5)
+            except (TypeError, ValueError):
+                limit = 5
+            try:
+                items = lt_recall(query, limit=limit)
+                text  = lt_format(items) or "No matching memories, sir."
+            except Exception as e:
+                text = f"Memory lookup failed: {e}"
+            if not self.ui.muted: self.ui.set_state("LISTENING")
+            return types.FunctionResponse(
+                id=fc.id, name=name,
+                response={"result": text}
             )
 
         loop   = asyncio.get_event_loop()
