@@ -126,6 +126,21 @@ dev_agent
   description: string (required)
   language: string (optional)
 
+notes_agent
+  action: "add" | "search" | "list" | "read" | "update" | "delete" (required)
+  text: string (for add/update)
+  title: string (optional)
+  tags: string (optional)
+  query: string (for search)
+  id: int (for read/update/delete)
+
+system_agent
+  action: "status" | "cpu" | "memory" | "disk" | "battery" | "network" | "processes" | "uptime" (required)
+
+briefing_agent
+  action: "briefing" (optional)
+  city: string (optional, default Nairobi)
+
 EXAMPLES:
 
 Goal: "research mechanical engineering and save it to a notepad file"
