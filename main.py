@@ -73,6 +73,9 @@ from actions.reminder          import reminder
 from actions.notes_agent       import notes_agent
 from actions.system_agent      import system_agent
 from actions.briefing_agent    import briefing_agent
+from actions.scope_agent       import scope_agent
+from actions.findings_agent    import findings_agent
+from actions.report_agent      import report_agent
 from actions.computer_settings import computer_settings
 from actions.screen_processor  import screen_process
 from actions.youtube_video     import youtube_video
@@ -1180,6 +1183,61 @@ TOOL_DECLARATIONS = [
         }
     },
 
+
+    # ── Scope / Rules of Engagement ───────────────────────────────────────────
+    {
+        "name": "scope_agent",
+        "description": "Manage authorized pentest scope (Rules of Engagement). Actions: add, remove, list, check, authorize. Fail-closed authorization check for targets.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":        {"type": "STRING"},
+                "target":        {"type": "STRING"},
+                "note":          {"type": "STRING"},
+                "authorized_by": {"type": "STRING"},
+                "notes":         {"type": "STRING"},
+            },
+            "required": ["action"]
+        }
+    },
+
+    # ── Findings Tracker ──────────────────────────────────────────────────────
+    {
+        "name": "findings_agent",
+        "description": "Track pentest findings (severity, CVSS, target, remediation, status). Actions: add, list, get, update, delete, summary.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":      {"type": "STRING"},
+                "title":       {"type": "STRING"},
+                "severity":    {"type": "STRING"},
+                "cvss":        {"type": "NUMBER"},
+                "target":      {"type": "STRING"},
+                "description": {"type": "STRING"},
+                "remediation": {"type": "STRING"},
+                "status":      {"type": "STRING"},
+                "id":          {"type": "INTEGER"},
+            },
+            "required": ["action"]
+        }
+    },
+
+    # ── Pentest Report Generator ──────────────────────────────────────────────
+    {
+        "name": "report_agent",
+        "description": "Generate a professional pentest report (Markdown) from recorded findings and authorized scope. Actions: generate, preview.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":   {"type": "STRING"},
+                "title":    {"type": "STRING"},
+                "author":   {"type": "STRING"},
+                "client":   {"type": "STRING"},
+                "filename": {"type": "STRING"},
+            },
+            "required": []
+        }
+    },
 
         # ── GitHub Agent (Cross-Platform Universal Tool Manager) ─────────────────
     {
@@ -2678,6 +2736,27 @@ class JarvisLive:
                 r = await loop.run_in_executor(
                     None,
                     lambda: briefing_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "scope_agent":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: scope_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "findings_agent":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: findings_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "report_agent":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: report_agent(parameters=args, player=self.ui, speak=self.speak)
                 )
                 result = r or "Done."
 
