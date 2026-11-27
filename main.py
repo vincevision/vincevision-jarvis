@@ -83,6 +83,7 @@ from actions.docs_agent        import docs_agent
 from actions.drive_agent       import drive_agent
 from actions.notion_agent      import notion_agent
 from actions.pc_controller    import pc_controller
+from actions.instagram_manager import instagram_manager
 from actions.computer_settings import computer_settings
 from actions.screen_processor  import screen_process
 from actions.youtube_video     import youtube_video
@@ -1354,6 +1355,47 @@ TOOL_DECLARATIONS = [
                 "id":             {"type": "STRING"},
             },
             "required": []
+        }
+    },
+
+    # ── Instagram Manager (full account management) ──────────────────────────
+    {
+        "name": "instagram_manager",
+        "description": (
+            "Full management of the operator's own Instagram account. "
+            "Messages: inbox, dm_read, dm (text), dm_image (photo), dm_many. "
+            "Publishing: post, carousel (2-10 files), reel, story, schedule, queue, "
+            "unschedule, run_due. Following: follow, unfollow, follow_many, followers, "
+            "following, not_following_back, mutuals, fans, requests. Engagement: like, "
+            "unlike, comment, comments, save. Profile: profile, edit_bio, set_avatar, "
+            "my_posts. Insight: activity, report. Account-changing actions require "
+            "confirm='INSTAGRAM CONFIRMED' (or dry_run=true). Daily caps apply."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":    {"type": "STRING"},
+                "username":  {"type": "STRING"},
+                "usernames": {"type": "STRING", "description": "Comma-separated handles for bounded batch actions (max 10)"},
+                "message":   {"type": "STRING"},
+                "text":      {"type": "STRING"},
+                "url":       {"type": "STRING"},
+                "media":     {"type": "STRING", "description": "File path, or comma-separated paths for a carousel"},
+                "caption":   {"type": "STRING"},
+                "hashtags":  {"type": "STRING"},
+                "mentions":  {"type": "STRING"},
+                "bio":       {"type": "STRING"},
+                "kind":      {"type": "STRING", "description": "post | carousel | reel | story"},
+                "when":      {"type": "NUMBER", "description": "Unix timestamp for schedule"},
+                "id":        {"type": "STRING", "description": "Scheduled post id for unschedule"},
+                "limit":     {"type": "NUMBER"},
+                "scrolls":   {"type": "NUMBER"},
+                "accept":    {"type": "STRING"},
+                "confirm":   {"type": "STRING"},
+                "dry_run":   {"type": "STRING"},
+                "save":      {"type": "STRING"},
+            },
+            "required": ["action"]
         }
     },
 
@@ -2940,6 +2982,13 @@ class JarvisLive:
                 r = await loop.run_in_executor(
                     None,
                     lambda: notion_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "instagram_manager":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: instagram_manager(parameters=args, player=self.ui, speak=self.speak)
                 )
                 result = r or "Done."
 
