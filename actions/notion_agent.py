@@ -14,8 +14,6 @@ import json
 import sys
 from pathlib import Path
 
-import requests
-
 
 def _base_dir() -> Path:
     if getattr(sys, "frozen", False):
@@ -67,6 +65,7 @@ def _request(method: str, path: str, payload: dict | None = None) -> dict:
     token = cfg.get("token", "")
     if not token:
         raise RuntimeError(setup_instructions())
+    import requests  # lazy: only needed once actually calling the API
     headers = {
         "Authorization": f"Bearer {token}",
         "Notion-Version": NOTION_VERSION,
