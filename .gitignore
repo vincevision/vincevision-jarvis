@@ -18,6 +18,8 @@ config/api_keys.json
 config/email_config.json
 config/telegram_config.json
 config/scope.json
+config/google_client_secret.json
+config/notion_config.json
 config/.credentials/
 reports/
 kali_agent_scripts/

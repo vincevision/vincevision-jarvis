@@ -76,6 +76,12 @@ from actions.briefing_agent    import briefing_agent
 from actions.scope_agent       import scope_agent
 from actions.findings_agent    import findings_agent
 from actions.report_agent      import report_agent
+from actions.google_auth       import google_auth_agent
+from actions.gmail_agent       import gmail_agent
+from actions.calendar_agent    import calendar_agent
+from actions.docs_agent        import docs_agent
+from actions.drive_agent       import drive_agent
+from actions.notion_agent      import notion_agent
 from actions.computer_settings import computer_settings
 from actions.screen_processor  import screen_process
 from actions.youtube_video     import youtube_video
@@ -1234,6 +1240,117 @@ TOOL_DECLARATIONS = [
                 "author":   {"type": "STRING"},
                 "client":   {"type": "STRING"},
                 "filename": {"type": "STRING"},
+            },
+            "required": []
+        }
+    },
+
+    # ── Google connection (OAuth for Gmail/Calendar/Docs/Drive) ──────────────
+    {
+        "name": "google_auth",
+        "description": "Connect or manage the Google account used by Gmail, Calendar, Docs and Drive agents. Actions: connect, status, logout, setup.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING"},
+            },
+            "required": []
+        }
+    },
+
+    # ── Gmail (official API) ─────────────────────────────────────────────────
+    {
+        "name": "gmail_agent",
+        "description": "Gmail via the official Google API. Actions: unread, list, search, read, send, labels, setup. Requires 'connect google' first.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":  {"type": "STRING"},
+                "query":   {"type": "STRING"},
+                "id":      {"type": "STRING"},
+                "to":      {"type": "STRING"},
+                "subject": {"type": "STRING"},
+                "body":    {"type": "STRING"},
+                "limit":   {"type": "INTEGER"},
+            },
+            "required": []
+        }
+    },
+
+    # ── Google Calendar ──────────────────────────────────────────────────────
+    {
+        "name": "calendar_agent",
+        "description": "Google Calendar scheduling. Actions: today, upcoming, create, delete, setup. Times in ISO format; default timezone Africa/Nairobi.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":           {"type": "STRING"},
+                "summary":          {"type": "STRING"},
+                "start":            {"type": "STRING"},
+                "end":              {"type": "STRING"},
+                "description":      {"type": "STRING"},
+                "location":         {"type": "STRING"},
+                "id":               {"type": "STRING"},
+                "days":             {"type": "INTEGER"},
+                "duration_minutes": {"type": "INTEGER"},
+            },
+            "required": []
+        }
+    },
+
+    # ── Google Docs ──────────────────────────────────────────────────────────
+    {
+        "name": "docs_agent",
+        "description": "Google Docs: create, read, append, and export_report (push a pentest report into a shareable Doc). Actions: create, read, append, export_report, setup.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING"},
+                "title":  {"type": "STRING"},
+                "text":   {"type": "STRING"},
+                "id":     {"type": "STRING"},
+                "client": {"type": "STRING"},
+            },
+            "required": []
+        }
+    },
+
+    # ── Google Drive ─────────────────────────────────────────────────────────
+    {
+        "name": "drive_agent",
+        "description": "Google Drive file management. Actions: list, search, upload, download, setup. Uploads use the drive.file scope (JARVIS-created files only).",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":    {"type": "STRING"},
+                "query":     {"type": "STRING"},
+                "path":      {"type": "STRING"},
+                "name":      {"type": "STRING"},
+                "id":        {"type": "STRING"},
+                "dest":      {"type": "STRING"},
+                "folder_id": {"type": "STRING"},
+                "limit":     {"type": "INTEGER"},
+            },
+            "required": []
+        }
+    },
+
+    # ── Notion ───────────────────────────────────────────────────────────────
+    {
+        "name": "notion_agent",
+        "description": "Notion workspace: search, create_page, append, and sync_findings (push pentest findings to Notion). Actions: setup, status, search, create_page, append, sync_findings.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":         {"type": "STRING"},
+                "token":          {"type": "STRING"},
+                "parent_page_id": {"type": "STRING"},
+                "database_id":    {"type": "STRING"},
+                "query":          {"type": "STRING"},
+                "title":          {"type": "STRING"},
+                "content":        {"type": "STRING"},
+                "text":           {"type": "STRING"},
+                "id":             {"type": "STRING"},
             },
             "required": []
         }
@@ -2757,6 +2874,48 @@ class JarvisLive:
                 r = await loop.run_in_executor(
                     None,
                     lambda: report_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "google_auth":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: google_auth_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "gmail_agent":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: gmail_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "calendar_agent":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: calendar_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "docs_agent":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: docs_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "drive_agent":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: drive_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "notion_agent":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: notion_agent(parameters=args, player=self.ui, speak=self.speak)
                 )
                 result = r or "Done."
 
