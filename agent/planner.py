@@ -192,6 +192,15 @@ notion_agent
   query: string (for search)
   title / content: strings (for create_page)
 
+pc_controller
+  action: "open_browser" | "research" | "type" | "delete" | "open_app" | "run" | "click" | "hotkey" | "screenshot" | "close_browser" | "status" (required)
+  url: string (for open_browser)
+  query: string (for research)
+  text: string (for type)
+  path / name: strings (for delete)
+  command: string (for run)
+  confirm: "true" to allow permanent delete or destructive commands
+
 EXAMPLES:
 
 Goal: "research mechanical engineering and save it to a notepad file"

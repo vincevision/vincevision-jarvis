@@ -151,6 +151,38 @@ Cloud setup walkthroughs: [docs/cloud_integrations.md](docs/cloud_integrations.m
 | "Check my unread Gmail" / "Email alice@acme.com …" | gmail |
 | "What's on my calendar today?" / "Schedule kickoff Friday 10am" | calendar |
 | "Search the web for …" / "Weather in Nairobi" | web search / weather |
+| "Open the browser" / "Research quantum computing" | pc_controller |
+| "Type 'hello world'" / "Open the terminal" | pc_controller |
+| "Delete old_report.pdf" | pc_controller (→ trash) |
+
+---
+
+## 🖥️ PC control
+
+The **`pc_controller`** agent drives the whole computer from one interface —
+it orchestrates the existing low-level agents, so you can watch it work:
+
+- **Open browser & research** — opens a *visible* browser, types your query so
+  you can see it, and returns a spoken/written summary
+- **Visible typing & input** — `type`, `click`, `hotkey`, `press`, `scroll`,
+  `screenshot` (PyAutoGUI; move the mouse to a screen corner to abort)
+- **Delete files** — say *"delete X"* and it goes to the **trash / recycle bin
+  (recoverable)** by default. Permanent delete requires `confirm=true` and
+  stays inside your safe user directories
+- **Launch apps** — `open_app` for browser, terminal, files, calculator,
+  editor, settings (cross-platform)
+- **Run commands** — shell execution; catastrophic commands (`rm -rf /`,
+  `mkfs`, `shutdown`, …) are blocked unless you pass `confirm=true`
+
+### 🛡️ Background daemon — OFF by default
+
+The proactive monitoring daemon (network/port/file/login/process watchers)
+**does not auto-start**. Turn it on only if you want it:
+
+- Voice: *"start daemon"* / *"stop daemon"* / *"daemon status"*
+- Env var: `JARVIS_DAEMON=1 python main.py`
+- Config: `config/daemon.json` → `{"enabled": true}` (copy from
+  `config/daemon.example.json`)
 
 ---
 
