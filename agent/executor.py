@@ -253,6 +253,15 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
     elif tool == "briefing_agent":
         from actions.briefing_agent import briefing_agent
         return briefing_agent(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "scope_agent":
+        from actions.scope_agent import scope_agent
+        return scope_agent(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "findings_agent":
+        from actions.findings_agent import findings_agent
+        return findings_agent(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "report_agent":
+        from actions.report_agent import report_agent
+        return report_agent(parameters=parameters, player=None, speak=speak) or "Done."
     else:
         print(f"[Executor] ⚠️ Unknown tool '{tool}' — falling back to generated_code")
         return _run_generated_code(f"Accomplish this task: {parameters}", speak=speak)

@@ -141,6 +141,23 @@ briefing_agent
   action: "briefing" (optional)
   city: string (optional, default Nairobi)
 
+scope_agent
+  action: "add" | "remove" | "list" | "check" | "authorize" (required)
+  target: string (IP, CIDR, or domain)
+  authorized_by: string (for authorize)
+
+findings_agent
+  action: "add" | "list" | "get" | "update" | "delete" | "summary" (required)
+  title: string (for add)
+  severity: "critical" | "high" | "medium" | "low" | "info"
+  target: string (optional)
+  id: int (for get/update/delete)
+
+report_agent
+  action: "generate" | "preview" (optional)
+  client: string (optional)
+  title: string (optional)
+
 EXAMPLES:
 
 Goal: "research mechanical engineering and save it to a notepad file"
