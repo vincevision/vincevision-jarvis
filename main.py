@@ -82,6 +82,7 @@ from actions.calendar_agent    import calendar_agent
 from actions.docs_agent        import docs_agent
 from actions.drive_agent       import drive_agent
 from actions.notion_agent      import notion_agent
+from actions.pc_controller    import pc_controller
 from actions.computer_settings import computer_settings
 from actions.screen_processor  import screen_process
 from actions.youtube_video     import youtube_video
@@ -1353,6 +1354,29 @@ TOOL_DECLARATIONS = [
                 "id":             {"type": "STRING"},
             },
             "required": []
+        }
+    },
+
+    # ── PC Controller (unified computer control) ─────────────────────────────
+    {
+        "name": "pc_controller",
+        "description": "Control the whole PC: open_browser, research (visible browser + search), type/smart_type (visible typing), click, hotkey, press, scroll, screenshot, delete (trash by default; permanent needs confirm), open_app, run (shell; destructive needs confirm), close_browser.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":    {"type": "STRING"},
+                "url":       {"type": "STRING"},
+                "query":     {"type": "STRING"},
+                "text":      {"type": "STRING"},
+                "path":      {"type": "STRING"},
+                "name":      {"type": "STRING"},
+                "command":   {"type": "STRING"},
+                "permanent": {"type": "STRING"},
+                "confirm":   {"type": "STRING"},
+                "interval":  {"type": "NUMBER"},
+                "engine":    {"type": "STRING"},
+            },
+            "required": ["action"]
         }
     },
 
@@ -2919,6 +2943,13 @@ class JarvisLive:
                 )
                 result = r or "Done."
 
+            elif name == "pc_controller":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: pc_controller(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
             # ── Evolved Tools — dynamic dispatch ──────────────────────────────
             else:
                 evo = get_evolution_engine(_get_api_key())
@@ -3175,11 +3206,15 @@ def main():
         jarvis = JarvisLive(ui)
 
         try:
-            daemon = JarvisDaemon(jarvis)
-            daemon.start()
-            from core import daemon as daemon_module
-            daemon_module._daemon = daemon
-            print("[JARVIS] 🛡️ Daemon layer active")
+            from core.daemon import daemon_enabled_by_default
+            if daemon_enabled_by_default():
+                daemon = JarvisDaemon(jarvis)
+                daemon.start()
+                from core import daemon as daemon_module
+                daemon_module._daemon = daemon
+                print("[JARVIS] 🛡️ Daemon layer active")
+            else:
+                print("[JARVIS] 🛡️ Daemon off by default — say 'start daemon' to enable.")
         except Exception as e:
             print(f"[JARVIS] Daemon skipped: {e}")
 

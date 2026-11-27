@@ -280,6 +280,9 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
     elif tool == "notion_agent":
         from actions.notion_agent import notion_agent
         return notion_agent(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "pc_controller":
+        from actions.pc_controller import pc_controller
+        return pc_controller(parameters=parameters, player=None, speak=speak) or "Done."
     else:
         print(f"[Executor] ⚠️ Unknown tool '{tool}' — falling back to generated_code")
         return _run_generated_code(f"Accomplish this task: {parameters}", speak=speak)

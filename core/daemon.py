@@ -648,3 +648,26 @@ def get_daemon(jarvis_instance=None) -> JarvisDaemon | None:
     if _daemon is None and jarvis_instance is not None:
         _daemon = JarvisDaemon(jarvis_instance)
     return _daemon
+
+
+def daemon_enabled_by_default(config_path=None) -> bool:
+    """Whether the background daemon should auto-start on launch.
+
+    OFF by default. Enable with either:
+      * env var JARVIS_DAEMON=1 (takes precedence), or
+      * config/daemon.json -> {"enabled": true}
+    The daemon can always be started/stopped at runtime via the
+    daemon_control tool ("start daemon" / "stop daemon").
+    """
+    env = os.environ.get("JARVIS_DAEMON")
+    if env is not None:
+        return env.strip().lower() in ("1", "true", "yes", "on")
+    try:
+        cfg = Path(config_path) if config_path else \
+            Path(__file__).resolve().parent.parent / "config" / "daemon.json"
+        if cfg.exists():
+            with open(cfg, "r", encoding="utf-8") as f:
+                return bool(json.load(f).get("enabled", False))
+    except Exception:
+        pass
+    return False
