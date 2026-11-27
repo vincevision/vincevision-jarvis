@@ -84,6 +84,10 @@ from actions.drive_agent       import drive_agent
 from actions.notion_agent      import notion_agent
 from actions.pc_controller    import pc_controller
 from actions.instagram_manager import instagram_manager
+from actions.video_manager   import video_manager
+from core.wake_word          import wake_word_control
+from core.dashboard          import dashboard_control
+from agent.task_queue        import task_control
 from actions.computer_settings import computer_settings
 from actions.screen_processor  import screen_process
 from actions.youtube_video     import youtube_video
@@ -1355,6 +1359,96 @@ TOOL_DECLARATIONS = [
                 "id":             {"type": "STRING"},
             },
             "required": []
+        }
+    },
+
+    # ── Video Manager (YouTube + TikTok creator studio) ──────────────────────
+    {
+        "name": "video_manager",
+        "description": (
+            "Publish and manage the operator's own YouTube/TikTok channels in a "
+            "visible browser. upload (video+title+description+tags+thumbnail+privacy), "
+            "schedule, queue, unschedule, run_due, comments, reply, like, subscribe, "
+            "playlist_add, analytics, report, activity. Publishing requires "
+            "confirm='VIDEO CONFIRMED' (or dry_run=true to preview). Daily caps apply."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":      {"type": "STRING"},
+                "platform":    {"type": "STRING", "description": "youtube | tiktok"},
+                "video":       {"type": "STRING"},
+                "title":       {"type": "STRING"},
+                "description": {"type": "STRING"},
+                "tags":        {"type": "STRING"},
+                "privacy":     {"type": "STRING", "description": "public | unlisted | private (youtube); public | friends | private (tiktok)"},
+                "thumbnail":   {"type": "STRING"},
+                "url":         {"type": "STRING"},
+                "text":        {"type": "STRING"},
+                "playlist":    {"type": "STRING"},
+                "when":        {"type": "NUMBER"},
+                "id":          {"type": "STRING"},
+                "confirm":     {"type": "STRING"},
+                "dry_run":     {"type": "STRING"},
+                "save":        {"type": "STRING"},
+            },
+            "required": ["action"]
+        }
+    },
+
+    # ── Parallel task queue (self-healing) ───────────────────────────────────
+    {
+        "name": "task_control",
+        "description": (
+            "Run agent goals in parallel with automatic retries. submit (goal, "
+            "priority), status (task_id), list, stats, cancel, retry, wait. "
+            "Transient errors retry with exponential backoff; permanent ones fail fast."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":   {"type": "STRING"},
+                "goal":     {"type": "STRING"},
+                "priority": {"type": "STRING", "description": "high | normal | low"},
+                "task_id":  {"type": "STRING"},
+                "timeout":  {"type": "NUMBER"},
+            },
+            "required": ["action"]
+        }
+    },
+
+    # ── Wake word + barge-in ─────────────────────────────────────────────────
+    {
+        "name": "wake_word_control",
+        "description": (
+            "Hands-free wake word ('Jarvis', fuzzy) and barge-in (interrupt JARVIS "
+            "mid-sentence by speaking). Actions: start, stop, status, test (text), config."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING"},
+                "text":   {"type": "STRING"},
+            },
+            "required": ["action"]
+        }
+    },
+
+    # ── Local dashboard ──────────────────────────────────────────────────────
+    {
+        "name": "dashboard_control",
+        "description": (
+            "Read-only local web dashboard: findings, task queue, Instagram/video "
+            "activity and schedules, health. Actions: start, stop, status. "
+            "Optional port (default 8765). Never displays secrets."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING"},
+                "port":   {"type": "NUMBER"},
+            },
+            "required": ["action"]
         }
     },
 
@@ -2982,6 +3076,34 @@ class JarvisLive:
                 r = await loop.run_in_executor(
                     None,
                     lambda: notion_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "video_manager":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: video_manager(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "task_control":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: task_control(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "wake_word_control":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: wake_word_control(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "dashboard_control":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: dashboard_control(parameters=args, player=self.ui, speak=self.speak)
                 )
                 result = r or "Done."
 

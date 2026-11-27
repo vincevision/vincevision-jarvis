@@ -215,6 +215,27 @@ instagram_manager
   when: unix timestamp (schedule); id: scheduled post id (unschedule)
   confirm: "INSTAGRAM CONFIRMED" for any account-changing action; dry_run: "true" to preview
 
+video_manager
+  action: "upload" | "schedule" | "queue" | "unschedule" | "run_due" | "comments" |
+          "reply" | "like" | "subscribe" | "playlist_add" | "analytics" | "report" |
+          "activity" | "help" (required)
+  platform: "youtube" | "tiktok"; video: file path; title / description / tags: strings
+  privacy: public | unlisted | private (youtube), public | friends | private (tiktok)
+  thumbnail: image path; url: video URL; when: unix timestamp; id: scheduled upload id
+  confirm: "VIDEO CONFIRMED" to publish; dry_run: "true" to preview the plan
+
+task_control
+  action: "submit" | "status" | "list" | "stats" | "cancel" | "retry" | "wait" (required)
+  goal: string (for submit); priority: high | normal | low; task_id: string
+
+wake_word_control
+  action: "start" | "stop" | "status" | "test" | "config" (required)
+  text: string (for test)
+
+dashboard_control
+  action: "start" | "stop" | "status" (required)
+  port: number (optional, default 8765)
+
 EXAMPLES:
 
 Goal: "research mechanical engineering and save it to a notepad file"

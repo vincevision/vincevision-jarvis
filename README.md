@@ -157,6 +157,85 @@ Cloud setup walkthroughs: [docs/cloud_integrations.md](docs/cloud_integrations.m
 | "Check my Instagram inbox" / "DM @alice the photo" | instagram_manager |
 | "Post this photo with #sunset" / "Schedule a reel" | instagram_manager |
 | "Who doesn't follow me back?" | instagram_manager |
+| "Upload this video to YouTube" / "Schedule a TikTok" | video_manager |
+| "Run these three tasks in parallel" | task_control |
+| "Start the dashboard" | dashboard_control |
+
+---
+
+## 🎬 Video Manager (YouTube + TikTok)
+
+Creator-side publishing for **your own** channels, driven through the visible
+browser so you can watch each step.
+
+| Area | Actions |
+|---|---|
+| **Publish** | `upload` (video + title + description + tags + thumbnail + privacy), `schedule`, `queue`, `unschedule`, `run_due` |
+| **Engage** | `comments`, `reply`, `like`, `subscribe` |
+| **Organise** | `playlist_add` |
+| **Insight** | `analytics`, `report`, `activity` |
+
+Metadata is validated against each platform's **real limits before any browser
+action** — YouTube titles ≤100 chars, descriptions ≤5000, tags ≤500 chars;
+TikTok captions ≤2200. Privacy is checked per platform (`public/unlisted/private`
+vs `public/friends/private`), so a rejected upload never half-publishes.
+Publishing needs `confirm="VIDEO CONFIRMED"`; `dry_run=true` prints the exact plan.
+
+> Watching, searching and summarising videos stays in `youtube_video.py` —
+> this module is the publishing/studio side.
+
+---
+
+## ⚡ Parallel tasks + self-healing
+
+The agent task queue now runs goals **concurrently** (3 slots by default) and
+heals itself:
+
+- **Transient** failures (timeouts, rate limits, 5xx, connection resets) retry
+  with **exponential backoff**
+- **Permanent** failures (unknown tool, permission denied, missing key, daily
+  cap) **fail fast** instead of burning retries
+- Optional `healer` hook can rewrite a goal between attempts; every rewrite is
+  kept in the task's history
+
+```bash
+JARVIS_MAX_CONCURRENT=6 python main.py     # 1–16 slots
+```
+
+Voice/tool: `task_control` → `submit`, `status`, `list`, `stats`, `cancel`,
+`retry`, `wait`.
+
+---
+
+## 🎙️ Wake word + barge-in
+
+- **Wake word** — "Jarvis", "hey Jarvis", "ok Jarvis"… matched fuzzily, so
+  "jervis" or "jarviz" still work. It only triggers when *addressed* — saying
+  "the jarvis project is nice" won't wake it.
+- **Barge-in** — interrupt JARVIS mid-sentence just by speaking. Energy-based,
+  so it needs no speech-to-text: an echo guard ignores playback onset, speech
+  must be sustained (~250 ms), and a cooldown stops it flapping.
+
+Configure via `config/wake_word.json` (copy `config/wake_word.example.json`) or
+`JARVIS_WAKE_WORD=0`. Tool: `wake_word_control` → `start`, `stop`, `status`,
+`test`, `config`. Audio capture is optional — without `sounddevice` the text
+matching and barge-in gating still work.
+
+---
+
+## 📊 Local dashboard
+
+A **read-only** web dashboard — stdlib only, no build step:
+
+```bash
+python -m core.dashboard --port 8765      # or say "start dashboard"
+python -m core.dashboard --json           # dump the same data as JSON
+```
+
+Shows security findings, the live task queue, Instagram/video activity against
+daily caps, scheduled posts/uploads, and a health check. Auto-refreshes every
+10 s. **No secrets are ever displayed** (API keys appear as set/missing only),
+and every mutating HTTP verb is rejected with 405.
 
 ---
 

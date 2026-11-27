@@ -286,6 +286,18 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
     elif tool == "instagram_manager":
         from actions.instagram_manager import instagram_manager
         return instagram_manager(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "video_manager":
+        from actions.video_manager import video_manager
+        return video_manager(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "task_control":
+        from agent.task_queue import task_control
+        return task_control(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "wake_word_control":
+        from core.wake_word import wake_word_control
+        return wake_word_control(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "dashboard_control":
+        from core.dashboard import dashboard_control
+        return dashboard_control(parameters=parameters, player=None, speak=speak) or "Done."
     else:
         print(f"[Executor] ⚠️ Unknown tool '{tool}' — falling back to generated_code")
         return _run_generated_code(f"Accomplish this task: {parameters}", speak=speak)
