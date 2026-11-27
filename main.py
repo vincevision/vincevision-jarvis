@@ -113,7 +113,7 @@ def _ensure_display():
             glob.glob(f"/run/user/{real_uid}/.xauth*") +
             [
                 "/root/.Xauthority",
-                f"/home/vincent/.Xauthority",
+                f"/home/{os.environ.get('SUDO_USER') or os.environ.get('USER') or 'user'}/.Xauthority",
                 f"/run/user/{real_uid}/gdm/Xauthority",
             ]
         )
@@ -185,7 +185,7 @@ def _load_system_prompt() -> str:
         return PROMPT_PATH.read_text(encoding="utf-8")
     except Exception:
         return (
-            "You are JARVIS, Vincent's AI assistant. "
+            "You are JARVIS, a personal AI assistant. "
             "Be concise, direct, and always use the provided tools. "
             "Never simulate results — always call the appropriate tool."
         )

@@ -1,0 +1,8 @@
+{
+  "targets": [
+    {"target": "example.com", "note": "Replace with your authorized target"},
+    {"target": "192.168.1.0/24", "note": "Example CIDR range"}
+  ],
+  "authorized_by": "Name of the person who authorized this engagement",
+  "notes": "Rules of Engagement notes go here"
+}

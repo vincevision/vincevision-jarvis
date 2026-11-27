@@ -36,7 +36,7 @@ def _get_real_user() -> tuple[str, int]:
                 return entry.pw_name, entry.pw_uid
     except Exception:
         pass
-    return "vincent", 1000
+    return os.environ.get("USER") or "user", 1000
 
 
 def _get_real_home() -> Path:
@@ -103,7 +103,7 @@ def _jarvis_profile_dir(browser: str, user: str = "", uid: int = 0) -> str:
 # ══════════════════════════════════════════════════════════════════════════
 #  RUNNING AS ROOT?
 #  When JARVIS runs as root the browser MUST be launched as the real user
-#  (vincent).  Root cannot connect to vincent's D-Bus/X11 session, which
+#  (the desktop user).  Root cannot connect to that user's D-Bus/X11 session, which
 #  causes the GTK segfault we see.  We detect this and wrap the Playwright
 #  launch with `sudo -u <user> -E` so the browser inherits the right session.
 # ══════════════════════════════════════════════════════════════════════════
@@ -376,12 +376,12 @@ class _BrowserSession:
         raise RuntimeError(
             f"All launch strategies failed for '{self.browser_name}'.\n\n"
             "💡 Try one of these:\n"
-            "   1. Run JARVIS as vincent instead of root:\n"
-            "      sudo -u vincent python3 main.py\n"
-            "   2. Or grant root access to vincent's X11:\n"
+            "   1. Run JARVIS as your desktop user instead of root:\n"
+            f"      sudo -u {user} python3 main.py\n"
+            "   2. Or grant root access to your X11 session:\n"
             "      xhost +local:root\n"
-            "      export XAUTHORITY=/home/vincent/.Xauthority\n"
-            "      export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus\n"
+            f"      export XAUTHORITY=/home/{user}/.Xauthority\n"
+            f"      export DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/{uid}/bus\n"
             "   3. Or always use headless:\n"
             "      browser_control({'action':'go_to','url':'...','headless':True})"
         )
@@ -407,7 +407,7 @@ class _BrowserSession:
         if headless:
             args.append("--headless=new")
 
-        # Build the command: sudo -u vincent env VAR=val ... brave-browser ...
+        # Build the command: sudo -u <user> env VAR=val ... brave-browser ...
         env_pairs = []
         for k in ["DISPLAY", "XAUTHORITY", "DBUS_SESSION_BUS_ADDRESS",
                   "XDG_RUNTIME_DIR", "HOME", "USER"]:

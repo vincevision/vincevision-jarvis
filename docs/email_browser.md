@@ -50,5 +50,5 @@ the legacy IMAP/SMTP path remains available by passing `backend='imap'`.
 
 - Login opens a **visible** window and waits up to 5 minutes for you to finish.
 - If JARVIS runs as root and the window can't appear, run it as your desktop
-  user (e.g. `sudo -u vincent python3 main.py`).
+  user (e.g. `sudo -u <your-user> python3 main.py`).
 - Tests: `python -m pytest -q tests/test_email_browser.py` (offline, no browser).
