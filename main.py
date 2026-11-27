@@ -980,7 +980,7 @@ TOOL_DECLARATIONS = [
     # ── Social Login ──────────────────────────────────────────────────────────
     {
         "name": "social_login",
-        "description": "Manages social media logins.",
+        "description": "Connect social accounts (instagram, twitter, facebook, linkedin, tiktok) via a real browser session. action='login' opens a visible window where the user signs in with their normal username + password + 2FA; the session is saved locally and reused — no stored passwords. Also: status, logout, list.",
         "parameters": {
             "type": "OBJECT",
             "properties": {

@@ -83,15 +83,12 @@ def _get_credential(parameters: dict, key: str) -> str:
 
 
 def _setup_credentials(parameters: dict) -> str:
-    username = parameters.get("username", "")
-    password = parameters.get("password", "")
-    if not username or not password:
-        return "Provide username and password to save Instagram credentials."
-    cfg = _load_config()
-    cfg["username"] = username
-    cfg["password"] = password
-    _save_config(cfg)
-    return "Instagram credentials saved locally in config/instagram.json. Keep this file private."
+    # Browser-session login: no password is stored or typed by JARVIS.
+    return (
+        "No password needed. Say 'instagram login' — a browser window opens and you "
+        "sign in yourself (username + password + 2FA). The session is saved locally in "
+        "browser_profiles/instagram; JARVIS never sees or stores your password."
+    )
 
 
 def _require_confirm(parameters: dict, action: str) -> Optional[str]:
@@ -345,52 +342,38 @@ def _is_logged_in(driver) -> bool:
 
 
 def _login(driver, parameters: dict, player=None) -> str:
-    from selenium.webdriver.common.by import By
-    from selenium.webdriver.common.keys import Keys
-
-    username = _get_credential(parameters, "username")
-    password = _get_credential(parameters, "password")
-
+    # Manual browser login: the user signs in themselves. JARVIS never reads,
+    # types, or stores the password — only the resulting session is persisted
+    # in the (gitignored) browser profile.
     driver.get(BASE_URL + "/")
-    _sleep(2, 4)
+    _sleep(2, 3)
 
     if _is_logged_in(driver):
         return "Instagram is already logged in using the saved browser profile."
 
-    if not username or not password:
-        return (
-            "Instagram credentials not found. Provide username/password once with action='setup', "
-            "or pass them to action='login'."
-        )
-
     driver.get(BASE_URL + "/accounts/login/")
-    _sleep(2, 4)
+    _sleep(1, 2)
+    _log(player, "[IG] Please sign in in the browser window (username + password + 2FA). "
+                 "Your password is never read or stored by JARVIS.")
 
-    user_box = _find(driver, By.NAME, "username", timeout=20)
-    pass_box = _find(driver, By.NAME, "password", timeout=20)
-
-    user_box.clear()
-    user_box.send_keys(username)
-    _sleep(0.4, 0.9)
-    pass_box.clear()
-    pass_box.send_keys(password)
-    _sleep(0.4, 0.9)
-    pass_box.send_keys(Keys.ENTER)
-
-    # Wait for normal login, 2FA, or checkpoint.
-    deadline = time.time() + int(parameters.get("login_timeout", 90))
+    deadline = time.time() + int(parameters.get("login_timeout", 300))
     while time.time() < deadline:
-        current = driver.current_url
-        if "/challenge" in current or "two_factor" in current or "checkpoint" in current:
-            _log(player, "[IG] Manual verification required. Complete it in the browser.")
-        if _is_logged_in(driver):
-            _click_if_present(driver, ["button._a9--._a9_1", "button._a9--._a9_0"], timeout=2)
-            return "Instagram login successful. Session saved in browser profile."
+        try:
+            current = driver.current_url
+        except Exception:
+            break
+        if any(s in current for s in ("/challenge", "two_factor", "/checkpoint")):
+            _log(player, "[IG] Complete the verification in the browser.")
+        elif "instagram.com" in current and "/accounts/login" not in current:
+            _sleep(1, 2)
+            if _is_logged_in(driver):
+                _click_if_present(driver, ["button._a9--._a9_1", "button._a9--._a9_0"], timeout=2)
+                return "✅ Instagram connected. Session saved in the browser profile."
         time.sleep(2)
 
     return (
-        "Login not completed yet. If Instagram asked for 2FA/challenge, complete it in the browser, "
-        "then call action='status'."
+        "Login wasn't completed in time. Finish signing in in the browser, then say "
+        "'instagram status'. Your session is saved once you're logged in."
     )
 
 
