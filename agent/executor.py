@@ -244,6 +244,15 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
     elif tool == "flight_finder":
         from actions.flight_finder import flight_finder
         return flight_finder(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "notes_agent":
+        from actions.notes_agent import notes_agent
+        return notes_agent(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "system_agent":
+        from actions.system_agent import system_agent
+        return system_agent(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "briefing_agent":
+        from actions.briefing_agent import briefing_agent
+        return briefing_agent(parameters=parameters, player=None, speak=speak) or "Done."
     else:
         print(f"[Executor] ⚠️ Unknown tool '{tool}' — falling back to generated_code")
         return _run_generated_code(f"Accomplish this task: {parameters}", speak=speak)

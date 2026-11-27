@@ -70,6 +70,9 @@ from actions.open_app          import open_app
 from actions.weather_report    import weather_action
 from actions.send_message      import send_message
 from actions.reminder          import reminder
+from actions.notes_agent       import notes_agent
+from actions.system_agent      import system_agent
+from actions.briefing_agent    import briefing_agent
 from actions.computer_settings import computer_settings
 from actions.screen_processor  import screen_process
 from actions.youtube_video     import youtube_video
@@ -1123,6 +1126,57 @@ TOOL_DECLARATIONS = [
                 "message": {"type": "STRING"},
             },
             "required": ["date", "time", "message"]
+        }
+    },
+
+    # ── Notes Agent ───────────────────────────────────────────────────────────
+    {
+        "name": "notes_agent",
+        "description": "Save, search, list, read, update, and delete personal notes. Actions: add, search, list, read, update, delete.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING"},
+                "text":   {"type": "STRING"},
+                "title":  {"type": "STRING"},
+                "tags":   {"type": "STRING"},
+                "query":  {"type": "STRING"},
+                "id":     {"type": "INTEGER"},
+                "limit":  {"type": "INTEGER"},
+                "tag":    {"type": "STRING"},
+            },
+            "required": ["action"]
+        }
+    },
+
+    # ── System Monitor ────────────────────────────────────────────────────────
+    {
+        "name": "system_agent",
+        "description": "Report PC health: CPU, RAM, disk, battery, uptime, network, top processes. Actions: status, cpu, memory, disk, battery, network, processes, uptime.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING"},
+                "count":  {"type": "INTEGER"},
+                "sort":   {"type": "STRING"},
+            },
+            "required": ["action"]
+        }
+    },
+
+    # ── Daily Briefing ────────────────────────────────────────────────────────
+    {
+        "name": "briefing_agent",
+        "description": "Deliver a spoken daily briefing (greeting, weather, unread email, system health, news). Use for good morning / brief me.",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":   {"type": "STRING"},
+                "city":     {"type": "STRING"},
+                "topic":    {"type": "STRING"},
+                "sections": {"type": "STRING"},
+            },
+            "required": []
         }
     },
 
@@ -2603,6 +2657,27 @@ class JarvisLive:
                         player=self.ui,
                         speak=self.speak
                     )
+                )
+                result = r or "Done."
+
+            elif name == "notes_agent":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: notes_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "system_agent":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: system_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "briefing_agent":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: briefing_agent(parameters=args, player=self.ui, speak=self.speak)
                 )
                 result = r or "Done."
 
