@@ -158,6 +158,40 @@ report_agent
   client: string (optional)
   title: string (optional)
 
+google_auth
+  action: "connect" | "status" | "logout" | "setup" (optional)
+
+gmail_agent
+  action: "unread" | "list" | "search" | "read" | "send" | "labels" (optional)
+  query: string (for search)
+  id: string (for read)
+  to / subject / body: strings (for send)
+
+calendar_agent
+  action: "today" | "upcoming" | "create" | "delete" (optional)
+  summary: string (for create)
+  start: ISO datetime or YYYY-MM-DD (for create)
+  end: ISO datetime (optional)
+  id: string (for delete)
+
+docs_agent
+  action: "create" | "read" | "append" | "export_report" (optional)
+  title / text: strings
+  id: string (for read/append)
+  client: string (for export_report)
+
+drive_agent
+  action: "list" | "search" | "upload" | "download" (optional)
+  query: string (for search)
+  path: string (for upload)
+  id: string (for download)
+
+notion_agent
+  action: "setup" | "status" | "search" | "create_page" | "append" | "sync_findings" (optional)
+  token / parent_page_id / database_id: strings (for setup)
+  query: string (for search)
+  title / content: strings (for create_page)
+
 EXAMPLES:
 
 Goal: "research mechanical engineering and save it to a notepad file"

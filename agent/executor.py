@@ -262,6 +262,24 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
     elif tool == "report_agent":
         from actions.report_agent import report_agent
         return report_agent(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "google_auth":
+        from actions.google_auth import google_auth_agent
+        return google_auth_agent(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "gmail_agent":
+        from actions.gmail_agent import gmail_agent
+        return gmail_agent(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "calendar_agent":
+        from actions.calendar_agent import calendar_agent
+        return calendar_agent(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "docs_agent":
+        from actions.docs_agent import docs_agent
+        return docs_agent(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "drive_agent":
+        from actions.drive_agent import drive_agent
+        return drive_agent(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "notion_agent":
+        from actions.notion_agent import notion_agent
+        return notion_agent(parameters=parameters, player=None, speak=speak) or "Done."
     else:
         print(f"[Executor] ⚠️ Unknown tool '{tool}' — falling back to generated_code")
         return _run_generated_code(f"Accomplish this task: {parameters}", speak=speak)
