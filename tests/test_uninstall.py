@@ -96,6 +96,38 @@ def test_integrations_only(tmp_path):
     assert str(base / "logs") not in paths
 
 
+@pytest.mark.skipif(uninstall._is_root(), reason="root bypasses permission checks")
+def test_entry_handles_permission_denied(tmp_path):
+    # Regression: on real Linux, /etc/sudoers.d is root-only (mode 750) and
+    # Path.exists() raises PermissionError. _entry must not crash.
+    locked = tmp_path / "sudoers.d"
+    locked.mkdir()
+    locked.chmod(0o000)
+    try:
+        item = uninstall._entry(locked / "jarvis", "system", "sudoers rules")
+        assert item["exists"] is True       # assumed present, needs root
+        assert item["needs_root"] is True
+        assert item["is_dir"] is False
+    finally:
+        locked.chmod(0o755)  # let pytest clean up tmp_path
+
+
+@pytest.mark.skipif(uninstall._is_root(), reason="root bypasses permission checks")
+def test_build_plan_survives_inaccessible_system_path(tmp_path):
+    base, home = tmp_path / "repo", tmp_path / "home"
+    _seed(base, home)
+    locked = tmp_path / "sudoers.d"
+    locked.mkdir()
+    locked.chmod(0o000)
+    try:
+        plan = uninstall.build_plan(
+            base_dir=base, home_dir=home,
+            system_paths=[(str(locked / "jarvis"), "sudoers rules")])
+        assert any(i["category"] == "system" for i in plan)
+    finally:
+        locked.chmod(0o755)
+
+
 def test_system_entries_flagged_needs_root(tmp_path):
     base, home = tmp_path / "repo", tmp_path / "home"
     _seed(base, home)
