@@ -109,8 +109,15 @@ def _is_root() -> bool:
 
 
 def _entry(path: Path, category: str, description: str) -> dict:
-    exists = path.exists() or path.is_symlink()
-    is_dir = path.is_dir() and not path.is_symlink()
+    try:
+        exists = path.exists() or path.is_symlink()
+        is_dir = path.is_dir() and not path.is_symlink()
+    except OSError:
+        # Can't stat the path (e.g. a root-only dir like /etc/sudoers.d when
+        # we're not root). Assume it may exist and needs root; removal is
+        # gated by the needs_root check anyway, so this is safe.
+        exists = True
+        is_dir = False
     return {
         "path": str(path),
         "category": category,
