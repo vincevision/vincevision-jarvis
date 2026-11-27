@@ -620,6 +620,23 @@ class _BrowserSession:
                 print(f"[Browser] fill {sel}: {e}")
         return f"Filled {count} field(s)"
 
+    async def upload(self, selector="input[type='file']", paths=None) -> str:
+        """Attach local file(s) to a file input (Playwright set_input_files)."""
+        page = await self._get_page()
+        if isinstance(paths, str):
+            paths = [p.strip() for p in paths.split(",") if p.strip()]
+        files = [str(Path(p).expanduser().resolve()) for p in (paths or [])]
+        if not files:
+            return "No file path given"
+        missing = [f for f in files if not Path(f).exists()]
+        if missing:
+            return f"File not found: {missing[0]}"
+        try:
+            await page.set_input_files(selector, files if len(files) > 1 else files[0])
+            return f"Attached {len(files)} file(s)"
+        except Exception as e:
+            return f"Upload failed: {e}"
+
     async def close(self) -> str:
         if self._context:
             await self._context.close()
@@ -739,6 +756,10 @@ def browser_control(parameters: dict = None, player=None, **kwargs) -> str:
                 result = sess.run(sess.reload())
             elif action == "fill_form":
                 result = sess.run(sess.fill_form(params.get("fields", {})))
+            elif action in ("upload", "upload_file", "attach"):
+                result = sess.run(sess.upload(
+                    params.get("selector", "input[type='file']"),
+                    params.get("paths") or params.get("path") or params.get("media")))
             elif action == "switch":
                 browser = params.get("browser", browser)
                 sess    = _registry.get(browser, headless=headless)

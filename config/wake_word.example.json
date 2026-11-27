@@ -1,0 +1,10 @@
+{
+  "enabled": true,
+  "aliases": ["jarvis", "hey jarvis", "ok jarvis", "yo jarvis", "hi jarvis"],
+  "fuzzy_threshold": 0.82,
+  "barge_in": true,
+  "rms_threshold": 0.02,
+  "min_speech_ms": 250,
+  "cooldown_s": 1.5,
+  "echo_guard_ms": 400
+}
