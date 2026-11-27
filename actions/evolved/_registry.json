@@ -1,0 +1,42 @@
+{
+  "insta_unfollow": {
+    "path": "actions/evolved/insta_unfollow.py",
+    "declaration": {
+      "name": "insta_unfollow",
+      "description": "Automates unfollowing Instagram users who do not follow you back, with random delays, progress updates, and logging of unfollowed accounts.",
+      "parameters": {
+        "type": "OBJECT",
+        "properties": {
+          "action": {
+            "type": "STRING",
+            "description": "run | status | stop | setup"
+          },
+          "username": {
+            "type": "STRING",
+            "description": "Account username"
+          },
+          "password": {
+            "type": "STRING",
+            "description": "Account password"
+          },
+          "count": {
+            "type": "INTEGER",
+            "description": "Max items to process per session (default 50)."
+          },
+          "delay": {
+            "type": "NUMBER",
+            "description": "Delay between actions in seconds (default random 3-8s)."
+          }
+        },
+        "required": []
+      }
+    },
+    "description": "Automates unfollowing Instagram users who do not follow you back, with random delays, progress updates, and logging of unfollowed accounts.",
+    "packages": [
+      "instagrapi"
+    ],
+    "interactive": true,
+    "needs_browser": false,
+    "needs_login": true
+  }
+}

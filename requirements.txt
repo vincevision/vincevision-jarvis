@@ -1,0 +1,134 @@
+﻿# ═══════════════════════════════════════════════════════════════════
+#  JARVIS — Python Dependencies
+#  Install:        pip install -r requirements.txt
+#  Auto-managed:  Edit core/dependency_manager.py to add new packages
+# ═══════════════════════════════════════════════════════════════════
+
+# ── Core AI ───────────────────────────────────────────────────────
+google-genai
+google-generativeai
+openai
+groq
+
+# ── Audio ─────────────────────────────────────────────────────────
+sounddevice
+pyaudio
+
+# ── UI ────────────────────────────────────────────────────────────
+pyqt6
+Pillow>=10.0.0
+
+# ── Browser Automation ────────────────────────────────────────────
+playwright>=1.40.0
+pyautogui>=0.9.54
+pyperclip>=1.8.2
+
+# ── Computer Vision ───────────────────────────────────────────────
+opencv-python>=4.8.0
+numpy>=1.24.0
+mss>=9.0.0
+
+# ── Web & Search ──────────────────────────────────────────────────
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+duckduckgo-search
+lxml>=4.9.0
+
+# ── File Processing ───────────────────────────────────────────────
+python-pptx
+send2trash
+youtube-transcript-api
+PyPDF2>=3.0.0
+python-docx>=1.0.0
+openpyxl>=3.1.0
+pytesseract>=0.3.10
+
+# ── System ────────────────────────────────────────────────────────
+psutil
+pathlib
+
+# ── Telegram Bot & Lookup ─────────────────────────────────────────
+python-telegram-bot>=20.0
+telethon>=1.34.0
+
+# ── Trading (Pro Agent) ───────────────────────────────────────────
+MetaTrader5>=5.0.45; sys_platform == "win32"
+ccxt>=4.2.0
+yfinance
+pandas>=2.0.0
+pandas-ta>=0.3.14b; python_version < "3.14"
+scipy>=1.11.0
+mplfinance>=0.12.10b0
+matplotlib>=3.7.0
+websocket-client>=1.6.0
+python-dotenv>=1.0.0
+pytz>=2024.1
+
+# ── Number Tracer / Phone OSINT ───────────────────────────────────
+phonenumbers>=8.13.0
+
+# ── Network Scanner ───────────────────────────────────────────────
+qrcode[pil]
+python-nmap>=0.7.1
+scapy>=2.5.0
+
+# ── Bluetooth ─────────────────────────────────────────────────────
+bleak
+bleak-winrt;          sys_platform == "win32"
+
+# ── Smart Home (optional — uncomment if needed) ───────────────────
+# paho-mqtt>=1.6.0
+# tapo
+
+# ── Crypto / Credentials ──────────────────────────────────────────
+cryptography
+
+# ── Email (uses stdlib imaplib/smtplib + IMAP enhancements) ───────
+imapclient>=3.0.0
+
+# ── Offensive Security — Core ─────────────────────────────────────
+pynput>=1.7.6
+stem>=1.8.1
+holehe>=1.7.0
+h8mail>=2.5.0
+sherlock-project
+
+# ── Offensive Security — Platform Specific ────────────────────────
+evdev;                          sys_platform == "linux"
+pyobjc-framework-Quartz;        sys_platform == "darwin"
+pyobjc-framework-CoreWLAN;      sys_platform == "darwin"
+
+# ── TikTok Agent ──────────────────────────────────────────────────
+selenium>=4.15.0
+undetected-chromedriver>=3.5.0
+
+# ── Misc Networking ───────────────────────────────────────────────
+paramiko
+netaddr
+impacket
+
+# === Core dependencies for github_agent + Mega + Cross-platform support ===
+requests>=2.32.0
+psutil>=6.0.0
+tqdm>=4.66.0
+python-dotenv>=1.0.0
+
+# === Already used by your main JARVIS system (recommended to keep) ===
+google-generativeai>=0.8.0
+groq>=0.9.0
+sounddevice>=0.5.0
+pillow>=10.0.0
+pyautogui>=0.9.54
+opencv-python>=4.8.0
+numpy>=1.26.0
+pydub>=0.25.1
+pyperclip>=1.8.0
+webdriver-manager
+
+playwright>=1.40.0
+gologin>=1.1.0
+requests>=2.31.0
+Pillow>=10.0.0
+aiohttp>=3.9.0
+python-dotenv>=1.0.0
+asyncio>=3.4.3
