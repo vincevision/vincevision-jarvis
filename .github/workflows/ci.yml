@@ -24,7 +24,7 @@ jobs:
       # Brain 2.0 modules are stdlib-only at import time (LLM SDKs are
       # imported lazily), so the offline test suite needs nothing else.
       - name: Run offline test suites
-        run: python -m pytest -q tests/test_brain.py tests/test_email_browser.py tests/test_social_browser.py tests/test_productivity_pack.py tests/test_pentest_kit.py tests/test_cloud_integrations.py tests/test_clone_ready.py
+        run: python -m pytest -q tests/test_brain.py tests/test_email_browser.py tests/test_social_browser.py tests/test_productivity_pack.py tests/test_pentest_kit.py tests/test_cloud_integrations.py tests/test_clone_ready.py tests/test_uninstall.py
 
       - name: Syntax-check touched modules
-        run: python -m py_compile agent/planner.py agent/executor.py agent/error_handler.py core/long_term_memory.py actions/email_agent.py actions/email_browser.py actions/social_browser.py actions/social_login.py actions/instagram_agent.py actions/notes_agent.py actions/system_agent.py actions/briefing_agent.py actions/scope_agent.py actions/findings_agent.py actions/report_agent.py actions/google_auth.py actions/gmail_agent.py actions/calendar_agent.py actions/docs_agent.py actions/drive_agent.py actions/notion_agent.py doctor.py main.py
+        run: python -m py_compile agent/planner.py agent/executor.py agent/error_handler.py core/long_term_memory.py actions/email_agent.py actions/email_browser.py actions/social_browser.py actions/social_login.py actions/instagram_agent.py actions/notes_agent.py actions/system_agent.py actions/briefing_agent.py actions/scope_agent.py actions/findings_agent.py actions/report_agent.py actions/google_auth.py actions/gmail_agent.py actions/calendar_agent.py actions/docs_agent.py actions/drive_agent.py actions/notion_agent.py doctor.py uninstall.py main.py
