@@ -154,6 +154,51 @@ Cloud setup walkthroughs: [docs/cloud_integrations.md](docs/cloud_integrations.m
 | "Open the browser" / "Research quantum computing" | pc_controller |
 | "Type 'hello world'" / "Open the terminal" | pc_controller |
 | "Delete old_report.pdf" | pc_controller (→ trash) |
+| "Check my Instagram inbox" / "DM @alice the photo" | instagram_manager |
+| "Post this photo with #sunset" / "Schedule a reel" | instagram_manager |
+| "Who doesn't follow me back?" | instagram_manager |
+
+---
+
+## 📸 Instagram Manager
+
+Full management of **your own** account, built on the saved browser session
+from `instagram_agent` — you sign in yourself once, JARVIS never sees or stores
+your password.
+
+| Area | Actions |
+|---|---|
+| **Messages** | `inbox`, `dm_read`, `dm` (text), `dm_image` (photo), `dm_many` |
+| **Publishing** | `post`, `carousel` (2–10 files), `reel`, `story`, `schedule`, `queue`, `unschedule`, `run_due` |
+| **Following** | `follow`, `unfollow`, `follow_many`, `followers`, `following`, `not_following_back`, `mutuals`, `fans`, `requests` |
+| **Engagement** | `like`, `unlike`, `comment`, `comments`, `save` |
+| **Profile** | `profile` (stats), `edit_bio`, `set_avatar`, `my_posts` |
+| **Insight** | `activity` (usage today), `report` (markdown, `save=true` writes to `reports/`) |
+
+**Smart helpers**
+- Captions are composed for you — hashtags deduped and capped at 30, `@mentions`
+  validated, text trimmed to Instagram's 2200-character limit
+- Media is validated before upload: type, size, carousel count, reel-needs-video
+- `schedule` queues a post locally; `run_due` publishes whatever is due
+
+**Safety model**
+- Every account-changing or publishing action needs `confirm="INSTAGRAM CONFIRMED"`
+  — or `dry_run=true` to preview without touching anything
+- **Daily caps + minimum spacing** between actions (tracked in
+  `memory/instagram_state.json`) keep usage human-paced and protect the account
+  from action blocks
+- Batch actions accept **only handles you name**, capped at 10 per call — there
+  is no scrape-then-spam loop; follower lists are for analysis only
+- No CAPTCHA/2FA bypass, no password storage
+
+```bash
+# examples
+"instagram login"                          # sign in yourself, session is saved
+"instagram inbox"                          # read DM threads
+"instagram dm @alice saying 'hey'"         # needs confirmation
+"post sunset.jpg caption 'Golden hour' hashtags travel,sunset"
+"who doesn't follow me back on instagram"
+```
 
 ---
 

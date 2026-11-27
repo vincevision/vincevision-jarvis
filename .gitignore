@@ -19,6 +19,7 @@ config/email_config.json
 config/telegram_config.json
 config/scope.json
 config/daemon.json
+config/instagram.json
 config/google_client_secret.json
 config/notion_config.json
 config/.credentials/

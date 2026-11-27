@@ -201,6 +201,20 @@ pc_controller
   command: string (for run)
   confirm: "true" to allow permanent delete or destructive commands
 
+instagram_manager
+  action: "inbox" | "dm_read" | "dm" | "dm_image" | "post" | "carousel" | "reel" |
+          "story" | "schedule" | "queue" | "unschedule" | "run_due" | "follow" |
+          "unfollow" | "follow_many" | "followers" | "following" | "not_following_back" |
+          "mutuals" | "fans" | "requests" | "like" | "unlike" | "comment" | "comments" |
+          "save" | "profile" | "edit_bio" | "set_avatar" | "my_posts" | "activity" |
+          "report" | "help" (required)
+  username: string (single handle); usernames: comma-separated (batch, max 10)
+  message / text: string (DM body or comment)
+  media: file path (comma-separated for carousel); caption / hashtags / mentions: strings
+  url: post URL (like / comment / save)
+  when: unix timestamp (schedule); id: scheduled post id (unschedule)
+  confirm: "INSTAGRAM CONFIRMED" for any account-changing action; dry_run: "true" to preview
+
 EXAMPLES:
 
 Goal: "research mechanical engineering and save it to a notepad file"
