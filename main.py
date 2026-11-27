@@ -1475,7 +1475,7 @@ TOOL_DECLARATIONS = [
     # ── Email Agent ───────────────────────────────────────────────────────────
     {
         "name": "email_agent",
-        "description": "Manages emails.",
+        "description": "Manages email through a real browser session (default). The user runs action='login' once and signs in with their normal email + password (and 2FA) in a visible window; the session is saved locally and reused — no app password needed. Then check/search/send. Use backend='imap' for the legacy IMAP/SMTP path.",
         "parameters": {
             "type": "OBJECT",
             "properties": {
@@ -1492,6 +1492,9 @@ TOOL_DECLARATIONS = [
                 "email":       {"type": "STRING"},
                 "password":    {"type": "STRING"},
                 "name":        {"type": "STRING"},
+                "backend":     {"type": "STRING"},
+                "provider":    {"type": "STRING"},
+                "index":       {"type": "INTEGER"},
             },
             "required": ["action"]
         }

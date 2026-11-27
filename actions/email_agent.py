@@ -1,8 +1,10 @@
 # actions/email_agent.py
 """
 JARVIS Email Agent
-Supports: Gmail, Outlook, Yahoo, and any IMAP/SMTP email
-Features: Read, notify, send, search, delete, mark read
+Default backend: a real browser session (actions/email_browser.py).
+The user signs in once with their normal email + password; the session is
+saved locally and reused — no app passwords / IMAP setup required.
+Legacy IMAP/SMTP is still available with backend='imap'.
 """
 
 import imaplib
@@ -632,6 +634,12 @@ def email_agent(
 
     if player:
         player.write_log(f"[Email] Action: {action}")
+
+    # ── Browser backend (default): sign in once, reuse the saved session ──
+    backend = str(params.get("backend", "browser")).lower().strip()
+    if backend != "imap":
+        from actions.email_browser import email_browser_agent
+        return email_browser_agent(params, player, speak)
 
     # ── Setup / Help ──────────────────────────────────────────────
     if action in ("setup", "help", "instructions"):
