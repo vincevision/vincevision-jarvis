@@ -337,7 +337,7 @@ def _do_login(provider, email, player, speak) -> str:
             ctx.close()
     except Exception as e:
         return (f"Browser login failed: {e}. If JARVIS runs as root, try running it as your "
-                "desktop user (e.g. `sudo -u vincent python3 main.py`) so the window can open.")
+                "desktop user (e.g. `sudo -u <your-user> python3 main.py`) so the window can open.")
 
     if ok:
         _log(player, f"{spec['name']} session saved.")

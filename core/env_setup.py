@@ -96,7 +96,7 @@ def _get_real_user() -> str:
         pass
 
     # Fallback: current USER env
-    return os.environ.get("USER", "vincent")
+    return os.environ.get("USER", "user")
 
 
 def _get_real_uid(username: str) -> str:

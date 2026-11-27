@@ -108,7 +108,7 @@ if [ -n "$REAL_XAUTH" ]; then
     cp "$REAL_XAUTH" /root/.Xauthority 2>/dev/null
     chmod 600 /root/.Xauthority
 
-    # Copy to vincent
+    # Copy to the real (non-root) user
     cp "$REAL_XAUTH" "$REAL_HOME/.Xauthority" 2>/dev/null
     chmod 644 "$REAL_HOME/.Xauthority"
 

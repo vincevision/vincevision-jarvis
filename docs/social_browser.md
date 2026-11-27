@@ -42,5 +42,5 @@ Instagram · X (Twitter) · Facebook · LinkedIn · TikTok
 
 - Login opens a **visible** window and waits up to 5 minutes.
 - If JARVIS runs as root and no window appears, run it as your desktop user
-  (e.g. `sudo -u vincent python3 main.py`).
+  (e.g. `sudo -u <your-user> python3 main.py`).
 - Tests: `python -m pytest -q tests/test_social_browser.py` (offline, no browser).
