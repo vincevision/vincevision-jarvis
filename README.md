@@ -47,20 +47,33 @@ playwright install chromium
 # 5. Create config files from templates + runtime dirs
 python doctor.py --fix
 
-# 6. Add your API keys
-#    Edit config/api_keys.json:
-#      gemini_api_key  → https://aistudio.google.com/apikey   (required)
-#      groq_api_key    → https://console.groq.com/keys        (optional fallback)
-
-# 7. Verify setup
-python doctor.py
-
-# 8. Launch
+# 6. Launch — a setup popup appears on first run
 python main.py
 ```
 
-On first launch a **setup wizard** walks you through optional credentials
-(Telegram, email, etc.). Everything is stored locally and gitignored.
+### 🔑 First-run setup popup
+
+On first launch JARVIS opens a **setup popup** that prompts for your API keys —
+no terminal editing required:
+
+- **Gemini API key** (required) — free at [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
+- **Groq API key** (optional fallback) — free at [console.groq.com/keys](https://console.groq.com/keys)
+
+The popup has "Get free key" buttons that open the right page, a show/hide
+toggle for each key, and a **Skip for now** option. Keys are saved to the
+encrypted local vault **and** `config/api_keys.json`, then setup is marked
+complete so the popup won't reappear.
+
+Prefer to configure manually, or running headless? Either edit
+`config/api_keys.json` directly, or let JARVIS fall back to terminal prompts
+when no display is available. You can reopen the popup anytime with:
+
+```bash
+python -m core.api_key_setup
+```
+
+Everything is stored locally and gitignored. Optional credentials (Telegram,
+email, etc.) can be added later by voice: *"Jarvis, update my credentials."*
 
 ### 🐧 Kali / Debian / Ubuntu full installer
 

@@ -233,10 +233,22 @@ def mark_setup_complete():
 
 def run_setup_wizard(speak=None, player=None) -> str:
     """
-    Setup wizard that works safely as root.
-    Uses simple terminal input instead of Tkinter.
+    First-time setup. Prefers a friendly GUI popup for the Gemini/Groq API
+    keys; falls back to terminal prompts when no display is available
+    (e.g. headless / root without X11).
     """
     import sys
+
+    # ── Try the GUI popup first (friendlier than terminal) ──
+    try:
+        from core.api_key_setup import run_gui_setup
+        gui_result = run_gui_setup()
+        if gui_result is not None:
+            if speak:
+                speak("Setup complete, sir. JARVIS is ready.")
+            return gui_result
+    except Exception as e:
+        print(f"[Setup] GUI popup unavailable ({e}); using terminal setup.")
 
     print("\n")
     print("═" * 60)
