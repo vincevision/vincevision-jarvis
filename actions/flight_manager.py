@@ -115,7 +115,19 @@ CURRENCY_SYMBOLS = {"USD": "$", "EUR": "€", "GBP": "£", "KES": "KSh",
 
 def _browser(params: dict, player=None) -> str:
     from actions.browser_control import browser_control
-    return browser_control(parameters=params, player=player)
+    from core.visible import visible
+    return browser_control(parameters=visible(params), player=player)
+
+
+def _narrator(player=None, speak=None):
+    """Accept either a UI player or an existing Narrator (never raises)."""
+    from core.visible import Narrator
+    if isinstance(player, Narrator):
+        return player
+    try:
+        return Narrator(player, speak, prefix="Flights", sleeper=time.sleep)
+    except Exception:
+        return Narrator(prefix="Flights", sleeper=time.sleep)
 
 
 def _deep_parse(origin, destination, date, return_date, passengers, cabin,
@@ -154,6 +166,15 @@ def _say(speak, msg):
     try:
         if speak:
             speak(msg)
+    except Exception:
+        pass
+
+
+def _push_alert(title: str, body: str, level: str = "info", player=None) -> None:
+    """Deliver a price alert to the configured channels. Never raises."""
+    try:
+        from core.alerts import notify
+        notify(title, body, level=level, player=player)
     except Exception:
         pass
 
@@ -353,8 +374,8 @@ def build_search(params: dict, today: datetime | None = None) -> dict:
     if budget < 0:
         errors.append("max_price cannot be negative.")
 
-    currency = str(params.get("currency", DEFAULT_CURRENCY)).upper().strip()[:3]
-    if not re.fullmatch(r"[A-Z]{3}", currency or ""):
+    currency = str(params.get("currency", DEFAULT_CURRENCY)).upper().strip()
+    if not re.fullmatch(r"[A-Z]{3}", currency):
         currency = DEFAULT_CURRENCY
 
     return {"ok": not errors, "errors": errors, "origin": origin,
@@ -816,30 +837,39 @@ def build_report(search: dict, offers: list[dict], urls: dict,
 def op_search_site(site: str, s: dict, player=None, delay: float | None = None) -> list[dict]:
     # Resolve the default at call time so SITE_DELAY_S stays tunable.
     delay = SITE_DELAY_S if delay is None else delay
+    n = _narrator(player)
     url = build_url(site, s)
     if not url:
         return []
-    _browser({"action": "go_to", "url": url, "headless": False}, player)
+    n.doing(f"Opening {site} — {s['origin']} → {s['destination']} on {s['depart']}")
+    _browser({"action": "go_to", "url": url, "headless": False}, n.player)
     if delay:
         time.sleep(delay)
-    text = _browser({"action": "get_text", "limit": 40000, "headless": False}, player)
+    n.doing(f"Reading fares on {site}")
+    text = _browser({"action": "get_text", "limit": 40000, "headless": False}, n.player)
     if not text or "Could not extract" in str(text):
+        n.warn(f"{site} returned no readable text")
         return []
-    return extract_offers(text, site, s["currency"])
+    offers = extract_offers(text, site, s["currency"])
+    n.done(f"{site}: {len(offers)} fare(s) found")
+    return offers
 
 
 def op_meta_search(s: dict, sites=None, player=None, speak=None,
                    delay: float | None = None) -> tuple[list[dict], dict, list[str]]:
     delay = SITE_DELAY_S if delay is None else delay
+    n = _narrator(player, speak)
     urls = all_urls(s, sites)
     offers, notes = [], []
+    n.doing(f"Comparing {len(urls)} flight sites for {s['origin']} → {s['destination']}")
     for site, url in urls.items():
         _log(player, f"[Flights] {site}: {url}")
         try:
-            found = op_search_site(site, s, player, delay)
+            found = op_search_site(site, s, n, delay)
             offers.extend(found)
             notes.append(f"{site}: {len(found)} offer(s)")
         except Exception as e:
+            n.warn(f"{site} failed: {str(e)[:60]}")
             notes.append(f"{site}: failed ({str(e)[:60]})")
     return offers, urls, notes
 
@@ -939,9 +969,20 @@ def flight_manager(parameters: dict, player=None, speak=None) -> str:
                 if res["target_hit"]:
                     tag = " 🎯 TARGET HIT"
                     alerts += 1
+                    _push_alert(
+                        f"Flight target hit — {w['origin']}→{w['destination']}",
+                        f"{w['depart']}: {w['currency']} {best['price']:,.0f} "
+                        f"(target {w['currency']} {float(w.get('target') or 0):,.0f}) "
+                        f"on {best.get('site', 'kayak')}.",
+                        level="warning", player=player)
                 elif res["dropped"]:
                     tag = f" 🔻 down {w['currency']} {res['drop']:,.0f}"
                     alerts += 1
+                    _push_alert(
+                        f"Flight price drop — {w['origin']}→{w['destination']}",
+                        f"{w['depart']}: now {w['currency']} {best['price']:,.0f}, "
+                        f"down {w['currency']} {res['drop']:,.0f} on {best.get('site', 'kayak')}.",
+                        player=player)
                 lines.append(f"  [{w['id']}] {w['origin']}→{w['destination']} {w['depart']}: "
                              f"{w['currency']} {best['price']:,.0f}{tag}")
             if alerts:

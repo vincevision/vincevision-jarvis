@@ -18,6 +18,12 @@ tasks, calls 60+ tool agents, remembers context, and reports back — out loud.
 - ☁️ **Cloud integrations** — Gmail, Google Calendar, Google Docs, Google Drive, Notion (official APIs)
 - 📧 **Email & social** — browser-session login flows (no passwords stored) + IMAP fallback
 - 📝 **Productivity** — notes, system monitor, morning briefing, web search, weather, and more
+- ✈️ **Travel** — multi-site flight + hotel meta-search, price watches, full trip planner
+- 👁️ **Show-me mode** — searches open a visible browser and narrate every step
+- 🛡️ **Crash-proof** — every tool failure is contained, logged, and explained; the session keeps running
+- 🔔 **Live alerts** — price drops pushed to Gmail, Notion and Telegram
+- 🛠️ **Agent builder** — describe an agent in plain English, get a tested, crash-proof module
+- 📊 **Dashboard v2** — read-only web UI with watch-history charts and crash health
 - 🔌 **Extensible** — drop a new `actions/<name>_agent.py` in and wire it up; evolution engine for dynamic tools
 
 ---
@@ -131,6 +137,10 @@ committed; `doctor.py --fix` copies them into place.
 | `config/email_config.json` | IMAP/SMTP email fallback | optional |
 | `config/telegram_config.json` | Telegram bot remote control | optional |
 | `config/scope.json` | Pentest scope / Rules of Engagement | for pentest kit |
+| `config/flights.json` | Home airport, currency, airline preferences | optional |
+| `config/hotels.json` | Default city, currency, guests, min rating | optional |
+| `config/alerts.json` | Alert channels + email recipient | optional |
+| `config/visible.json` | Show-me mode, step pacing, speak-steps | optional (on by default) |
 | `config/.credentials/` | Encrypted credential vault + OAuth tokens | auto-created |
 
 Cloud setup walkthroughs: [docs/cloud_integrations.md](docs/cloud_integrations.md).
@@ -162,6 +172,12 @@ Cloud setup walkthroughs: [docs/cloud_integrations.md](docs/cloud_integrations.m
 | "Start the dashboard" | dashboard_control |
 | "Find cheap flights to Dubai next month" | flight_manager |
 | "Watch NBO→LHR and alert me under $500" | flight_manager |
+| "Compare hotels in Dubai Dec 15 for 5 nights under $150" | hotel_manager |
+| "Plan a trip to Dubai, 5 nights, budget 1500" | trip_planner |
+| "Send price alerts to my email" | alerts_control |
+| "Build an agent called crypto_watch with search, track, alert" | agent_builder |
+| "Show me what you're doing" / "Work quietly" | visible_control |
+| "Are you healthy?" / "Any crashes?" | health_control |
 
 ---
 
@@ -209,6 +225,167 @@ change markup often, so `compare` may parse fewer offers than the page shows.
 The deep links are the reliable part; the browser opens visibly so you can
 always check for yourself. No FX rates are invented — prices are reported in
 the currency the site returns.
+
+---
+
+## 👁️ Show-me mode — watch it work, not just hear about it
+
+JARVIS works **in front of you** by default. Every browser action opens a real,
+visible window and each step is narrated to the console and the UI log:
+
+```
+[Hotels] ▸ Opening booking — Dubai
+[Hotels] ▸ Reading prices on booking
+[Hotels] ✓ booking: 3 stay(s) found
+[Hotels] ✓ Hotel comparison finished
+```
+
+| Command | Effect |
+|---|---|
+| `show me status` | Current visibility settings |
+| `show me on` / `off` | Visible + narrated, or quiet background work |
+| `pace 0.5` | Seconds between narrated steps (0–10) |
+| `chatty` | Also **speak** each step (off by default) |
+
+Config: `config/visible.json` (copy `config/visible.example.json`), or the
+`JARVIS_SHOW_ME` / `JARVIS_PACE` environment variables. `headless=False` is
+forced for every search, and the window stays open so you can take over.
+
+---
+
+## 🛡️ No crashes — every failure is contained
+
+Tool dispatchers are wrapped in `core/safe_run.py`. If anything raises, you get
+a readable message instead of a dead session:
+
+```
+⚠️ hotel_manager hit a problem (ModuleNotFoundError: playwright).
+   Missing dependency 'playwright'. Install it with:
+   pip install playwright && playwright install chromium
+   Nothing was lost — the session is still running. Details in logs/crashes.log.
+```
+
+- Missing optional dependencies become **install hints**, not tracebacks
+- The parallel executor has an outer guard too, so one bad step can't kill a plan
+- `KeyboardInterrupt` / `SystemExit` are never swallowed — deliberate stops still stop
+- The crash log is bounded (512 KB / 200 entries) so it can't fill your disk
+
+| Command | Effect |
+|---|---|
+| `health status` | Healthy, or how many failures were contained |
+| `health crashes` | Recent contained failures |
+| `health deps` | Which optional dependencies are installed |
+| `health clear` | Empty the crash log |
+
+---
+
+## 🏨 Hotel Manager — stays across sites
+
+Searches **Booking.com, Airbnb, Expedia, Hotels.com, Agoda, Kayak and Google
+Hotels** in a visible browser, then ranks by price **and** guest rating.
+
+| Action | What it does |
+|---|---|
+| `compare` | All sites, ranked, with a 🏆 best pick and total for your stay |
+| `search` | One site, parsed and ranked |
+| `links` | Deep links only — instant, opens nothing |
+| `flexible` | Cheapest check-in in a ±N-day window (keeps your stay length) |
+| `watch` / `watches` / `check_watches` | Nightly-price tracking with 🔻 drop and 🎯 target alerts |
+| `report` | Markdown table (`save=true` → `reports/`) |
+| `book` | Opens the site **for you to pay** — never enters card details |
+
+Understands `nights` (checkout is derived), `guests`, `rooms`, `max_price` **per
+night**, `min_rating` (0–10) and `min_stars`. A `4.5/5` score is normalised to
+`9.0/10` so sites are comparable. Stays with no reviews are penalised, because
+an unreviewed "bargain" is a risk, not a deal.
+
+```
+compare hotels in Dubai, checkin 2026-12-15, nights 5, max_price 150
+flexible hotels in Nairobi, checkin Dec 15, flex_days 3
+watch hotels in Dubai Dec 15 for 5 nights, target 100
+```
+
+Defaults live in `config/hotels.json` (copy `config/hotels.example.json`).
+Same honest limits as flights: deep links are unit-tested offline but were not
+verified against the live sites, and text parsing is English-locale best-effort.
+
+---
+
+## 🧳 Trip Planner — flights + stay + budget + itinerary
+
+One request plans the whole trip. It searches flights and hotels **on screen**,
+splits your budget, and writes a day-by-day plan plus a pre-trip checklist.
+
+| Action | What it does |
+|---|---|
+| `plan` | Full trip: visible searches, found prices, budget verdict, itinerary |
+| `itinerary` | Day-by-day only — instant, no searching |
+| `budget` | Category split and projected total vs. your budget |
+| `checklist` | Passport, visa, insurance, check-in, packing |
+| `save` | Writes the plan to `reports/trip_<city>_<stamp>.md` |
+| `export` | Also pushes to Notion and/or Google Docs |
+
+```
+plan a trip to Dubai from Nairobi, Dec 15, 5 nights, budget 1500, style balanced
+```
+
+Budgets split by style (`budget` / `balanced` / `comfort`) across flights, hotel,
+food and activities, then compare against the prices actually found and tell you
+plainly whether you're over or under. The itinerary is a sensible skeleton — it
+does **not** invent opening hours, prices, or availability.
+
+---
+
+## 🔔 Live alert delivery — Gmail, Notion, Telegram
+
+Price drops and target hits are pushed to the channels you enable, not just
+printed on screen.
+
+| Command | Effect |
+|---|---|
+| `alerts channels` | What's configured and ready |
+| `alerts enable telegram` | Turn a channel on (`gmail`, `notion`, `telegram`, `file`, `console`) |
+| `alerts recipient me@example.com` | Where email alerts go |
+| `alerts send "Title" "Body"` | Send a test alert now |
+| `alerts history` | Recent deliveries and their per-channel results |
+| `alerts level warning` | Only deliver warning/critical |
+
+Config: `config/alerts.json` (copy `config/alerts.example.json`). `file` and
+`console` always work; Gmail needs Google connected, Notion needs a token,
+Telegram needs the bot running. **Each channel is isolated** — if Telegram is
+down, the email still goes out, and nothing raises.
+
+Flight and hotel watches call this automatically on a 🔻 drop or  target hit.
+
+---
+
+## 🛠️ Agent Builder — describe an agent, get an agent
+
+```
+build an agent called crypto_watch with actions search, track, alert
+```
+
+| Action | What it does |
+|---|---|
+| `preview` | Shows the generated code — writes nothing |
+| `build` | Writes `actions/<name>_agent.py` **and** `tests/test_<name>_agent.py` |
+| `list` | Agents the builder created |
+| `remove` | Deletes a builder-created agent (only those) |
+
+Generated agents are safe by construction:
+
+- stdlib-only at import time; capability imports are lazy
+- wrapped in `safe_tool`, so they cannot crash the session
+- actions map to **existing, already-guarded** capabilities (web search, visible
+  browser, alerts, reports, local JSON store)
+- **no** shell execution, `eval`, `exec`, or credential handling
+- source is syntax-checked before anything is written; a bad spec writes nothing
+- names can't shadow an existing module or a Python keyword
+- offensive specs (keyloggers, phishing, jammers, DDoS, credential theft) are refused
+
+Every generated agent ships with its own passing offline tests. To use it by
+voice, add it to `TOOL_DECLARATIONS` in `main.py` — the builder never edits your
+voice loop behind your back.
 
 ---
 
@@ -281,10 +458,17 @@ python -m core.dashboard --port 8765      # or say "start dashboard"
 python -m core.dashboard --json           # dump the same data as JSON
 ```
 
-Shows security findings, the live task queue, Instagram/video activity against
-daily caps, scheduled posts/uploads, and a health check. Auto-refreshes every
-10 s. **No secrets are ever displayed** (API keys appear as set/missing only),
-and every mutating HTTP verb is rejected with 405.
+**v2 panels:** security findings, the live task queue, Instagram/video activity
+against daily caps, scheduled posts/uploads, **flight and hotel price watches
+with inline SVG trend charts**, **alert delivery history**, **trip plans**, and
+**crash health** (how many failures were contained). Auto-refreshes every 10 s.
+**No secrets are ever displayed** (API keys appear as set/missing only), and
+every mutating HTTP verb is rejected with 405.
+
+JSON endpoints: `/api/summary`, `/api/health`, `/api/findings`, `/api/tasks`,
+`/api/instagram`, `/api/video`, `/api/flights`, `/api/hotels`, `/api/alerts`,
+`/api/trips`, `/api/crashes`, plus `/healthz`. Charts are hand-rolled SVG — no
+chart library, no CDN, no external assets.
 
 ---
 
@@ -365,10 +549,17 @@ Offline test suite (no network, no API keys, no SDKs needed):
 
 ```bash
 pip install pytest
-python -m pytest -q tests/
+# Run exactly what CI runs (the authoritative list lives in the workflow):
+python -m pytest -q $(grep -o 'python -m pytest -q .*' .github/workflows/ci.yml \
+  | sed 's/python -m pytest -q //')
 ```
 
-CI runs the suite on Python 3.11 and 3.12 for every push/PR.
+**1514 tests**, all offline — no network, no API keys, no browser, no SDKs.
+CI runs them on Python 3.11 and 3.12 for every push/PR.
+
+> Run the CI list rather than a bare `pytest tests/`: one legacy file
+> (`tests/test_telegram_backup_commands.py`) expects a live Telegram config and
+> is intentionally excluded.
 
 ---
 
@@ -378,10 +569,14 @@ CI runs the suite on Python 3.11 and 3.12 for every push/PR.
 main.py                  # voice loop, tool declarations, dispatch
 agent/                   # Brain 2.0: planner, executor, error handler, task queue
 core/                    # AI router, memory, credentials, setup wizard, env setup
+                         #   safe_run (crash net), visible (show-me), alerts,
+                         #   agent_builder, dashboard v2
 actions/                 # 60+ tool agents (one file per capability)
 config/                  # gitignored configs + committed *.example.json templates
 docs/                    # per-feature guides
-tests/                   # offline pytest suites
+tests/                   # offline pytest suites (1514 tests)
+logs/                    # gitignored: crashes.log, alerts.log
+reports/                 # gitignored: generated flight/hotel/trip reports
 doctor.py                # setup checker / fixer
 install.sh               # Kali/Debian/Ubuntu full installer
 requirements.txt         # Python dependencies
