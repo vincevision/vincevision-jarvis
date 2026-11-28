@@ -641,6 +641,13 @@ a non-empty cache folder — a half-finished download is reported as
 CI tests **3.11, 3.12, 3.13 and 3.14**. On 3.14, `pandas-ta` is skipped by its
 own environment marker (nothing in JARVIS imports it, so this is harmless).
 
+Python 3.14 also changed `Path.exists()` / `is_dir()` to return `False` on
+permission-denied instead of raising `PermissionError`. The uninstaller used to
+rely on that exception, which meant root-only leftovers such as
+`/etc/sudoers.d/jarvis` were silently reported as absent and skipped. It now
+probes with `os.lstat` and decides on `errno`, so the result is identical on
+every supported version.
+
 ### 🐢 `pip install` hangs on "looking at multiple versions"
 
 That was the unused legacy `google-generativeai` SDK forcing pip to backtrack

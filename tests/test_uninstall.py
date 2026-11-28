@@ -281,3 +281,88 @@ def test_cli_help():
     assert proc.returncode == 0
     assert "--keep-data" in proc.stdout
     assert "--dry-run" in proc.stdout
+
+
+# ── Python 3.14 compatibility ──────────────────────────────────────────────
+# From 3.14, Path.exists()/is_dir()/is_symlink() return False on EACCES instead
+# of raising PermissionError. _entry used to depend on that exception, so on
+# 3.14 a root-only artifact (/etc/sudoers.d/jarvis) was reported as ABSENT and
+# silently skipped. These tests pin the behaviour on ANY Python version.
+
+def test_probe_permission_denied_is_not_absent(tmp_path, monkeypatch):
+    import errno
+    target = tmp_path / "locked" / "jarvis"
+
+    def denied(p):
+        raise PermissionError(errno.EACCES, "Permission denied", str(p))
+    monkeypatch.setattr(uninstall.os, "lstat", denied)
+    # Simulate exactly what 3.14's pathlib does.
+    monkeypatch.setattr(uninstall.Path, "exists", lambda self, *a, **k: False)
+    monkeypatch.setattr(uninstall.Path, "is_dir", lambda self, *a, **k: False)
+    monkeypatch.setattr(uninstall.Path, "is_symlink", lambda self, *a, **k: False)
+    item = uninstall._entry(target, "system", "sudoers rules")
+    assert item["exists"] is True
+    assert item["needs_root"] is True
+    assert item["is_dir"] is False
+
+
+def test_probe_missing_is_absent(tmp_path):
+    assert uninstall._probe(tmp_path / "nope") == (False, False)
+
+
+def test_probe_not_a_directory_is_absent(tmp_path):
+    f = tmp_path / "file"
+    f.write_text("x", encoding="utf-8")
+    assert uninstall._probe(f / "child") == (False, False)
+
+
+def test_probe_existing_file(tmp_path):
+    f = tmp_path / "file"
+    f.write_text("x", encoding="utf-8")
+    assert uninstall._probe(f) == (True, False)
+
+
+def test_probe_existing_dir(tmp_path):
+    d = tmp_path / "dir"
+    d.mkdir()
+    assert uninstall._probe(d) == (True, True)
+
+
+def test_probe_symlink_to_dir_is_not_a_dir(tmp_path):
+    d = tmp_path / "dir"
+    d.mkdir()
+    link = tmp_path / "link"
+    link.symlink_to(d)
+    assert uninstall._probe(link) == (True, False)
+
+
+def test_probe_broken_symlink_still_exists(tmp_path):
+    link = tmp_path / "dangling"
+    link.symlink_to(tmp_path / "gone")
+    # lstat sees the link itself, so it is present and removable.
+    assert uninstall._probe(link) == (True, False)
+
+
+def test_probe_other_oserror_assumes_present(tmp_path, monkeypatch):
+    import errno
+
+    def io_error(p):
+        raise OSError(errno.EIO, "I/O error", str(p))
+    monkeypatch.setattr(uninstall.os, "lstat", io_error)
+    assert uninstall._probe(tmp_path / "x") == (True, False)
+
+
+def test_probe_null_byte_path_is_absent(tmp_path):
+    assert uninstall._probe(str(tmp_path) + "\0bad") == (False, False)
+
+
+@pytest.mark.skipif(uninstall._is_root(), reason="root bypasses permission checks")
+def test_entry_real_locked_dir_reports_present(tmp_path):
+    locked = tmp_path / "sudoers.d"
+    locked.mkdir()
+    locked.chmod(0o000)
+    try:
+        item = uninstall._entry(locked / "jarvis", "system", "sudoers rules")
+        assert item["exists"] is True and item["needs_root"] is True
+    finally:
+        locked.chmod(0o755)

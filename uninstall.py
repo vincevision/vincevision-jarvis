@@ -25,9 +25,11 @@ Stdlib-only. Exit code 0 = success/dry-run, 1 = something failed.
 """
 
 import argparse
+import errno
 import json
 import os
 import shutil
+import stat
 import sys
 from pathlib import Path
 
@@ -108,16 +110,36 @@ def _is_root() -> bool:
     return hasattr(os, "geteuid") and os.geteuid() == 0
 
 
-def _entry(path: Path, category: str, description: str) -> dict:
+# Errnos that genuinely mean "not there". Everything else (notably EACCES)
+# means "cannot look" — which must NOT be reported as absent.
+_MISSING_ERRNOS = {errno.ENOENT, errno.ENOTDIR, errno.ELOOP, errno.EBADF}
+
+
+def _probe(path) -> tuple[bool, bool]:
+    """Return (exists, is_dir) identically on every supported Python.
+
+    Python 3.14 changed Path.exists()/is_dir()/is_symlink() to return False on
+    EACCES instead of raising PermissionError. The old code relied on that
+    exception, so on 3.14 a root-only artifact such as /etc/sudoers.d/jarvis
+    was silently reported as *absent* and skipped by the uninstaller.
+
+    os.lstat's errno is the same on all versions, so decide on that instead.
+    A symlink is never reported as a directory (matches the previous behaviour).
+    """
     try:
-        exists = path.exists() or path.is_symlink()
-        is_dir = path.is_dir() and not path.is_symlink()
-    except OSError:
-        # Can't stat the path (e.g. a root-only dir like /etc/sudoers.d when
-        # we're not root). Assume it may exist and needs root; removal is
-        # gated by the needs_root check anyway, so this is safe.
-        exists = True
-        is_dir = False
+        st = os.lstat(path)
+    except (ValueError, OSError) as exc:
+        code = getattr(exc, "errno", None)
+        if isinstance(exc, ValueError) or code in _MISSING_ERRNOS:
+            return False, False
+        # Cannot inspect (permissions, I/O error): assume present, needs root.
+        # Removal is gated by the needs_root check anyway, so this is safe.
+        return True, False
+    return True, stat.S_ISDIR(st.st_mode)
+
+
+def _entry(path: Path, category: str, description: str) -> dict:
+    exists, is_dir = _probe(path)
     return {
         "path": str(path),
         "category": category,
