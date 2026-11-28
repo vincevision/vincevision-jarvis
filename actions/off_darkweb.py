@@ -1020,7 +1020,7 @@ def open_tor_browser(url: str = "") -> dict:
         paths = [
             str(Path.home() / "Desktop/Tor Browser/Browser/firefox.exe"),
             r"C:\Program Files\Tor Browser\Browser\firefox.exe",
-            str(Path.home() / "AppData\Local\Tor Browser\Browser\firefox.exe"),
+            str(Path.home() / r"AppData\Local\Tor Browser\Browser\firefox.exe"),
         ]
         for p in paths:
             if Path(p).exists():
