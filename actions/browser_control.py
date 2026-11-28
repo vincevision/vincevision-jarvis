@@ -515,9 +515,10 @@ class _BrowserSession:
     async def get_url(self) -> str:
         return (await self._get_page()).url
 
-    async def get_text(self) -> str:
+    async def get_text(self, limit: int = 2000) -> str:
         try:
-            return (await (await self._get_page()).inner_text("body"))[:2000]
+            limit = max(200, min(int(limit), 200000))
+            return (await (await self._get_page()).inner_text("body"))[:limit]
         except Exception as e:
             return f"Could not extract text: {e}"
 
@@ -725,7 +726,7 @@ def browser_control(parameters: dict = None, player=None, **kwargs) -> str:
             elif action == "get_url":
                 result = sess.run(sess.get_url())
             elif action == "get_text":
-                result = sess.run(sess.get_text())
+                result = sess.run(sess.get_text(int(params.get("limit", 2000))))
             elif action in ("click", "smart_click"):
                 if action == "smart_click" or params.get("description"):
                     result = sess.run(sess.smart_click(

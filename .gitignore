@@ -21,6 +21,7 @@ config/scope.json
 config/daemon.json
 config/instagram.json
 config/wake_word.json
+config/flights.json
 config/google_client_secret.json
 config/notion_config.json
 config/.credentials/

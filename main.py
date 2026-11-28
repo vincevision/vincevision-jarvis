@@ -85,6 +85,7 @@ from actions.notion_agent      import notion_agent
 from actions.pc_controller    import pc_controller
 from actions.instagram_manager import instagram_manager
 from actions.video_manager   import video_manager
+from actions.flight_manager  import flight_manager
 from core.wake_word          import wake_word_control
 from core.dashboard          import dashboard_control
 from agent.task_queue        import task_control
@@ -1359,6 +1360,45 @@ TOOL_DECLARATIONS = [
                 "id":             {"type": "STRING"},
             },
             "required": []
+        }
+    },
+
+    # ── Flight Manager (multi-site cheap flights) ────────────────────────────
+    {
+        "name": "flight_manager",
+        "description": (
+            "Find cheap flights across Kayak, Google Flights, Skyscanner, Momondo, "
+            "Expedia, Kiwi, Booking.com and Trip.com. Actions: search (one site), "
+            "compare (all sites, ranked best-first), links (deep links only, instant), "
+            "flexible (cheapest day +/-N days), watch/unwatch/watches/check_watches "
+            "(price-drop alerts), report, advice (when to buy), airports, deep, book. "
+            "Accepts city names or IATA codes and natural dates ('next friday', "
+            "'in 3 weeks'). Never enters payment details."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":      {"type": "STRING"},
+                "origin":      {"type": "STRING", "description": "City or IATA, e.g. Nairobi or NBO"},
+                "destination": {"type": "STRING"},
+                "date":        {"type": "STRING", "description": "2026-12-15, 'next friday', 'in 3 weeks'"},
+                "return_date": {"type": "STRING"},
+                "trip":        {"type": "STRING", "description": "oneway | roundtrip"},
+                "passengers":  {"type": "NUMBER"},
+                "cabin":       {"type": "STRING", "description": "economy | premium | business | first"},
+                "stops":       {"type": "STRING", "description": "any | nonstop | 1stop"},
+                "max_price":   {"type": "NUMBER"},
+                "currency":    {"type": "STRING"},
+                "sites":       {"type": "STRING", "description": "Comma-separated subset, or all"},
+                "flex_days":   {"type": "NUMBER"},
+                "airlines":    {"type": "STRING"},
+                "target":      {"type": "NUMBER", "description": "Alert price for watch"},
+                "id":          {"type": "STRING", "description": "Watch id for unwatch"},
+                "query":       {"type": "STRING", "description": "City lookup for airports"},
+                "confirm":     {"type": "STRING"},
+                "save":        {"type": "STRING"},
+            },
+            "required": ["action"]
         }
     },
 
@@ -3076,6 +3116,13 @@ class JarvisLive:
                 r = await loop.run_in_executor(
                     None,
                     lambda: notion_agent(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "flight_manager":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: flight_manager(parameters=args, player=self.ui, speak=self.speak)
                 )
                 result = r or "Done."
 
