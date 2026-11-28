@@ -248,6 +248,45 @@ flight_manager
   flex_days: 0-7 (flexible); target: alert price (watch); id: watch id (unwatch)
   confirm: "FLIGHT CONFIRMED" for book (opens the site only; never enters payment)
 
+hotel_manager
+  action: "compare" | "search" | "links" | "flexible" | "watch" | "unwatch" |
+          "watches" | "check_watches" | "report" | "book" | "help" (required)
+  city: destination city; checkin / checkout: 2026-12-15 or 'next friday'
+  nights: number (used when checkout is omitted); guests: 1-16; rooms: 1-8
+  max_price: per night; min_rating: 0-10; min_stars: 1-5; currency: USD/KES/EUR...
+  sites: comma-separated subset of booking,airbnb,expedia,hotels,agoda,kayak,google
+  flex_days: 0-7; target: alert price per night; id: watch id (unwatch)
+  confirm: "HOTEL CONFIRMED" for book (opens the site only; never enters payment)
+
+trip_planner
+  action: "plan" | "itinerary" | "budget" | "checklist" | "save" | "export" |
+          "trips" | "help" (required)
+  destination: city; origin: departure city (optional, enables flight search)
+  date: start date; nights: number (or end date); travellers: 1-9
+  budget: total number; currency; style: budget | balanced | comfort
+  interests: "beaches, museums, food"; to: notion | docs (export)
+  Use for "plan a trip to Dubai for 5 nights with a 1500 budget".
+
+alerts_control
+  action: "send" | "history" | "channels" | "enable" | "disable" | "recipient" |
+          "level" | "status" (required)
+  title / body: alert content; channels: gmail,notion,telegram,file,console
+  level / min_level: info | warning | critical; email_to: address for gmail
+
+agent_builder
+  action: "preview" | "build" | "list" | "remove" | "help" (required)
+  spec: plain-English request, e.g. "build an agent called crypto_watch with
+        actions search, track, alert"; name; actions: comma-separated
+  Prefer preview before build. Never builds offensive tooling.
+
+visible_control
+  action: "on" | "off" | "pace" | "chatty" | "status" (required)
+  seconds: 0-10 pause between narrated steps (pace)
+
+health_control
+  action: "status" | "crashes" | "log" | "clear" | "deps" (required)
+  limit: number of recent entries
+
 EXAMPLES:
 
 Goal: "research mechanical engineering and save it to a notepad file"

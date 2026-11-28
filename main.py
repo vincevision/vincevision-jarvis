@@ -86,6 +86,12 @@ from actions.pc_controller    import pc_controller
 from actions.instagram_manager import instagram_manager
 from actions.video_manager   import video_manager
 from actions.flight_manager  import flight_manager
+from actions.hotel_manager   import hotel_manager
+from actions.trip_planner    import trip_planner
+from core.alerts             import alerts_control
+from core.agent_builder      import agent_builder
+from core.visible            import visible_control
+from core.safe_run           import health_control
 from core.wake_word          import wake_word_control
 from core.dashboard          import dashboard_control
 from agent.task_queue        import task_control
@@ -1397,6 +1403,159 @@ TOOL_DECLARATIONS = [
                 "query":       {"type": "STRING", "description": "City lookup for airports"},
                 "confirm":     {"type": "STRING"},
                 "save":        {"type": "STRING"},
+            },
+            "required": ["action"]
+        }
+    },
+
+    # ── Hotel Manager (multi-site stays) ─────────────────────────────────────
+    {
+        "name": "hotel_manager",
+        "description": (
+            "Find hotels/stays across Booking.com, Airbnb, Expedia, Hotels.com, "
+            "Agoda, Kayak and Google Hotels in a visible browser. Actions: compare "
+            "(all sites, ranked by price AND guest rating), search (one site), "
+            "links (instant deep links), flexible (cheapest check-in +/-N days), "
+            "watch/unwatch/watches/check_watches (nightly-price alerts), report, book. "
+            "Prices are per night. Never enters payment details."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":     {"type": "STRING"},
+                "city":       {"type": "STRING", "description": "Destination city, e.g. Dubai"},
+                "checkin":    {"type": "STRING", "description": "2026-12-15, 'next friday'"},
+                "checkout":   {"type": "STRING"},
+                "nights":     {"type": "NUMBER", "description": "Used if checkout is omitted"},
+                "guests":     {"type": "NUMBER"},
+                "rooms":      {"type": "NUMBER"},
+                "max_price":  {"type": "NUMBER", "description": "Per night"},
+                "min_rating": {"type": "NUMBER", "description": "0-10 guest score"},
+                "min_stars":  {"type": "NUMBER"},
+                "currency":   {"type": "STRING"},
+                "sites":      {"type": "STRING"},
+                "flex_days":  {"type": "NUMBER"},
+                "target":     {"type": "NUMBER", "description": "Alert price per night"},
+                "id":         {"type": "STRING"},
+                "confirm":    {"type": "STRING"},
+                "save":       {"type": "STRING"},
+            },
+            "required": ["action"]
+        }
+    },
+
+    # ── Trip Planner (flights + stays + itinerary + budget) ──────────────────
+    {
+        "name": "trip_planner",
+        "description": (
+            "Plan a whole trip: searches flights and hotels on screen, splits the "
+            "budget, and writes a day-by-day itinerary plus a pre-trip checklist. "
+            "Actions: plan (full search + plan), itinerary (instant, no search), "
+            "budget, checklist, save (reports/), export (Notion/Google Docs), trips. "
+            "Use for 'plan a trip to X for N nights with budget Y'."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":      {"type": "STRING"},
+                "destination": {"type": "STRING"},
+                "origin":      {"type": "STRING", "description": "Departure city (optional)"},
+                "date":        {"type": "STRING", "description": "Start date"},
+                "end":         {"type": "STRING"},
+                "nights":      {"type": "NUMBER"},
+                "travellers":  {"type": "NUMBER"},
+                "budget":      {"type": "NUMBER"},
+                "currency":    {"type": "STRING"},
+                "style":       {"type": "STRING", "description": "budget | balanced | comfort"},
+                "interests":   {"type": "STRING", "description": "e.g. beaches, museums, food"},
+                "to":          {"type": "STRING", "description": "Export target: notion | docs"},
+                "no_search":   {"type": "STRING"},
+            },
+            "required": ["action"]
+        }
+    },
+
+    # ── Alerts (multi-channel delivery) ──────────────────────────────────────
+    {
+        "name": "alerts_control",
+        "description": (
+            "Deliver alerts to Gmail, Notion, Telegram, the log file and the UI. "
+            "Actions: send (title/body), history, channels (what's ready), "
+            "enable/disable (channels), recipient (email address), level "
+            "(min_level info|warning|critical), status. Price watches use this "
+            "automatically."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":    {"type": "STRING"},
+                "title":     {"type": "STRING"},
+                "body":      {"type": "STRING"},
+                "channels":  {"type": "STRING", "description": "gmail,notion,telegram,file,console"},
+                "level":     {"type": "STRING"},
+                "min_level": {"type": "STRING"},
+                "email_to":  {"type": "STRING"},
+                "limit":     {"type": "NUMBER"},
+            },
+            "required": ["action"]
+        }
+    },
+
+    # ── Agent Builder (generate new agents from a description) ───────────────
+    {
+        "name": "agent_builder",
+        "description": (
+            "Build a new working agent from a plain-English description. Actions: "
+            "preview (show generated code, writes nothing), build (writes "
+            "actions/<name>.py plus offline tests), list, remove (builder-created "
+            "only). Generated agents are crash-proof and reuse existing "
+            "capabilities. Refuses offensive tooling."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":      {"type": "STRING"},
+                "spec":        {"type": "STRING", "description": "Plain-English request"},
+                "name":        {"type": "STRING"},
+                "actions":     {"type": "STRING", "description": "Comma-separated action names"},
+                "description": {"type": "STRING"},
+                "dry_run":     {"type": "STRING"},
+            },
+            "required": ["action"]
+        }
+    },
+
+    # ── Show-me mode (visible, narrated operation) ───────────────────────────
+    {
+        "name": "visible_control",
+        "description": (
+            "Control whether JARVIS works visibly. Actions: on (open sites in a "
+            "visible browser and narrate each step), off (quiet background), "
+            "pace (seconds between steps, 0-10), chatty (speak each step), status. "
+            "Show-me is ON by default."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action":  {"type": "STRING"},
+                "seconds": {"type": "NUMBER"},
+            },
+            "required": ["action"]
+        }
+    },
+
+    # ── Health / crash log ───────────────────────────────────────────────────
+    {
+        "name": "health_control",
+        "description": (
+            "Report JARVIS health: contained tool failures and dependency status. "
+            "Actions: status, crashes (recent contained failures), log, clear, deps."
+        ),
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "action": {"type": "STRING"},
+                "limit":  {"type": "NUMBER"},
             },
             "required": ["action"]
         }
@@ -3123,6 +3282,48 @@ class JarvisLive:
                 r = await loop.run_in_executor(
                     None,
                     lambda: flight_manager(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "hotel_manager":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: hotel_manager(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "trip_planner":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: trip_planner(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "alerts_control":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: alerts_control(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "agent_builder":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: agent_builder(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "visible_control":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: visible_control(parameters=args, player=self.ui, speak=self.speak)
+                )
+                result = r or "Done."
+
+            elif name == "health_control":
+                r = await loop.run_in_executor(
+                    None,
+                    lambda: health_control(parameters=args, player=self.ui, speak=self.speak)
                 )
                 result = r or "Done."
 

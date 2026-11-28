@@ -190,6 +190,25 @@ def _run_generated_code(description: str, speak: Callable | None = None) -> str:
 # ════════════════════════════════════════════════════════════════
 
 def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
+    """Crash-proof wrapper: a failing tool never kills the plan or the session."""
+    from core.safe_run import friendly, log_crash
+    try:
+        return _call_tool_inner(tool, parameters, speak)
+    except (KeyboardInterrupt, SystemExit):
+        raise
+    except Exception as exc:
+        log_crash(f"executor.{tool}", exc)
+        message = friendly(f"{tool}", exc)
+        print(f"[Executor] {message}")
+        if speak:
+            try:
+                speak("That step hit a problem, but I'm still running.")
+            except Exception:
+                pass
+        return message
+
+
+def _call_tool_inner(tool: str, parameters: dict, speak: Callable | None) -> str:
     if tool == "open_app":
         from actions.open_app import open_app
         return open_app(parameters=parameters, player=None) or "Done."
@@ -292,6 +311,24 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
     elif tool == "flight_manager":
         from actions.flight_manager import flight_manager
         return flight_manager(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "hotel_manager":
+        from actions.hotel_manager import hotel_manager
+        return hotel_manager(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "trip_planner":
+        from actions.trip_planner import trip_planner
+        return trip_planner(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "alerts_control":
+        from core.alerts import alerts_control
+        return alerts_control(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "agent_builder":
+        from core.agent_builder import agent_builder
+        return agent_builder(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "visible_control":
+        from core.visible import visible_control
+        return visible_control(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "health_control":
+        from core.safe_run import health_control
+        return health_control(parameters=parameters, player=None, speak=speak) or "Done."
     elif tool == "task_control":
         from agent.task_queue import task_control
         return task_control(parameters=parameters, player=None, speak=speak) or "Done."

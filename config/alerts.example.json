@@ -1,0 +1,6 @@
+{
+  "channels": ["file", "console"],
+  "email_to": "",
+  "notion_parent": "",
+  "min_level": "info"
+}

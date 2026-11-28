@@ -2,8 +2,9 @@
 JARVIS local dashboard
 ──────────────────────
 A read-only web dashboard for everything JARVIS is doing: pentest findings,
-Instagram activity + schedule, video uploads, the parallel task queue, and a
-health check.
+Instagram activity + schedule, video uploads, the parallel task queue, flight
+and hotel price watches with trend charts, alert delivery, trip plans, crash
+health, and a system check.
 
 Stdlib only (http.server) — no Flask, no build step, no external assets.
 
@@ -29,9 +30,11 @@ from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
+from core.safe_run import safe_tool
+
 DEFAULT_HOST = "0.0.0.0"
 DEFAULT_PORT = 8765
-VERSION = "1.0"
+VERSION = "2.0"
 
 
 def _base_dir() -> Path:
@@ -147,6 +150,86 @@ def collect_health(base_dir: Path | None = None) -> dict:
     }
 
 
+def _watch_rows(module_name: str, watch_cls: str, ledger_cls: str,
+                label_keys: tuple) -> dict:
+    """Shared shape for flight/hotel watch panels."""
+    out = {"available": False, "watches": [], "activity": {}, "caps": {}}
+    try:
+        mod = __import__(f"actions.{module_name}", fromlist=[watch_cls])
+        pw = getattr(mod, watch_cls)()
+        led = getattr(mod, ledger_cls)()
+        out["activity"] = led.counts_today() if hasattr(led, "counts_today") else {
+            "searches": led.count_today()}
+        out["caps"] = {"searches": getattr(mod, "DAILY_SEARCH_CAP", 0)}
+        for w in pw.list():
+            label = " · ".join(str(w.get(k, "")) for k in label_keys if w.get(k))
+            out["watches"].append({
+                "id": w.get("id"), "label": label,
+                "last_price": float(w.get("last_price") or 0),
+                "target": float(w.get("target") or 0),
+                "currency": w.get("currency", "USD"),
+                "history": [float(h.get("price", 0)) for h in (w.get("history") or [])],
+            })
+        out["available"] = True
+    except Exception as e:
+        out["error"] = str(e)[:160]
+    return out
+
+
+def collect_flights() -> dict:
+    return _watch_rows("flight_manager", "PriceWatch", "SearchLedger",
+                       ("origin", "destination", "depart"))
+
+
+def collect_hotels() -> dict:
+    return _watch_rows("hotel_manager", "HotelWatch", "SearchLedger",
+                       ("city", "checkin", "checkout"))
+
+
+def collect_alerts() -> dict:
+    out = {"available": False, "recent": [], "channels": [], "total": 0}
+    try:
+        from core import alerts
+        rows = alerts.load_history()
+        out["total"] = len(rows)
+        out["channels"] = alerts.normalize_channels(alerts.load_config().get("channels"))
+        for r in rows[-10:]:
+            out["recent"].append({
+                "t": float(r.get("t", 0)), "title": r.get("title", ""),
+                "level": r.get("level", "info"), "ok": bool(r.get("ok")),
+                "channels": r.get("channels", []),
+            })
+        out["available"] = True
+    except Exception as e:
+        out["error"] = str(e)[:160]
+    return out
+
+
+def collect_trips() -> dict:
+    out = {"available": False, "items": []}
+    try:
+        from actions import trip_planner
+        for t in trip_planner.load_trips()[-10:]:
+            out["items"].append({
+                "destination": t.get("destination", ""), "start": t.get("start", ""),
+                "end": t.get("end", ""), "nights": t.get("nights", 0),
+                "travellers": t.get("travellers", 1), "budget": t.get("budget", 0),
+                "currency": t.get("currency", "USD"),
+            })
+        out["available"] = True
+    except Exception as e:
+        out["error"] = str(e)[:160]
+    return out
+
+
+def collect_crashes() -> dict:
+    try:
+        from core.safe_run import crash_stats
+        return {"available": True, **crash_stats()}
+    except Exception as e:
+        return {"available": False, "total": 0, "recent": [], "error": str(e)[:160]}
+
+
 def build_summary(base_dir: Path | None = None) -> dict:
     return {
         "health": collect_health(base_dir),
@@ -154,7 +237,34 @@ def build_summary(base_dir: Path | None = None) -> dict:
         "instagram": collect_instagram(),
         "video": collect_video(),
         "tasks": collect_tasks(),
+        "flights": collect_flights(),
+        "hotels": collect_hotels(),
+        "alerts": collect_alerts(),
+        "trips": collect_trips(),
+        "crashes": collect_crashes(),
     }
+
+
+def sparkline(values, width: int = 120, height: int = 28) -> str:
+    """Inline SVG trend line — no chart library, no external assets."""
+    nums = []
+    for v in values or []:
+        try:
+            nums.append(float(v))
+        except (TypeError, ValueError):
+            continue
+    if len(nums) < 2:
+        return '<span class="sub">not enough data</span>'
+    lo, hi = min(nums), max(nums)
+    span = (hi - lo) or 1.0
+    step = width / (len(nums) - 1)
+    pts = " ".join(f"{i * step:.1f},{height - ((v - lo) / span) * (height - 4) - 2:.1f}"
+                   for i, v in enumerate(nums))
+    trend = "#3ddc97" if nums[-1] <= nums[0] else "#ff5c7c"
+    return (f'<svg width="{width}" height="{height}" viewBox="0 0 {width} {height}" '
+            f'role="img" aria-label="price trend">'
+            f'<polyline fill="none" stroke="{trend}" stroke-width="2" points="{pts}"/>'
+            f'</svg>')
 
 
 # ── Rendering ───────────────────────────────────────────────────────────────
@@ -312,6 +422,60 @@ def render_html(summary: dict) -> str:
     vid_rows = [[i.get("id"), i.get("platform"), i.get("title"), _fmt_when(i.get("when"))]
                 for i in (vid.get("scheduled") or [])]
 
+    # ── v2 panels: flights, hotels, alerts, trips, crash health ──────────
+    fl = summary.get("flights", {}) or {}
+    ho = summary.get("hotels", {}) or {}
+    al = summary.get("alerts", {}) or {}
+    tr = summary.get("trips", {}) or {}
+    cr = summary.get("crashes", {}) or {}
+
+    def watch_table(data, unit=""):
+        rows = data.get("watches") or []
+        if not rows:
+            return '<div class="empty">No price watches yet.</div>'
+        body = []
+        for w in rows:
+            last = (f"{_esc(w.get('currency'))} {w.get('last_price', 0):,.0f}{unit}"
+                    if w.get("last_price") else "—")
+            tgt = (f"{_esc(w.get('currency'))} {w.get('target', 0):,.0f}"
+                   if w.get("target") else "—")
+            hit = bool(w.get("target") and w.get("last_price")
+                       and w["last_price"] <= w["target"])
+            badge = ' <span class="pill ok">target hit</span>' if hit else ""
+            body.append(f"<tr><td>{_esc(w.get('label'))}{badge}</td><td>{last}</td>"
+                        f"<td>{tgt}</td><td>{sparkline(w.get('history'))}</td></tr>")
+        return ("<table><tr><th>Watch</th><th>Last</th><th>Target</th><th>Trend</th></tr>"
+                + "".join(body) + "</table>")
+
+    alert_rows = al.get("recent") or []
+    if alert_rows:
+        _ok_pill = '<span class="pill ok">ok</span>'
+        _bad_pill = '<span class="pill bad">failed</span>'
+        alerts_html = ("<table><tr><th>When</th><th>Alert</th><th>Level</th>"
+                       "<th>Channels</th><th>Result</th></tr>" + "".join(
+                           f"<tr><td>{_fmt_when(a.get('t'))}</td><td>{_esc(a.get('title'))}</td>"
+                           f"<td>{_esc(a.get('level'))}</td>"
+                           f"<td>{_esc(', '.join(a.get('channels') or []))}</td>"
+                           f"<td>{_ok_pill if a.get('ok') else _bad_pill}</td></tr>"
+                           for a in reversed(alert_rows)) + "</table>")
+    else:
+        alerts_html = '<div class="empty">No alerts delivered yet.</div>'
+
+    trip_rows = tr.get("items") or []
+    trips_html = schedule_table(
+        [[t.get("destination"), f"{t.get('start')} → {t.get('end')}",
+          f"{t.get('nights')}n / {t.get('travellers')}p",
+          f"{_esc(t.get('currency'))} {float(t.get('budget') or 0):,.0f}"] for t in trip_rows],
+        ["Destination", "Dates", "Length", "Budget"])
+
+    crash_total = int(cr.get("total", 0) or 0)
+    crash_pill = ('<span class="pill ok">no crashes</span>' if crash_total == 0
+                  else f'<span class="pill warn">{crash_total} contained</span>')
+    crash_html = ('<div class="empty">✅ No crashes recorded — every tool failure was contained.</div>'
+                  if crash_total == 0 else
+                  "<table><tr><th>Recent contained failures</th></tr>" + "".join(
+                      f"<tr><td>{_esc(x)}</td></tr>" for x in (cr.get("recent") or [])) + "</table>")
+
     return f"""<!doctype html>
 <html lang="en"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -341,6 +505,22 @@ def render_html(summary: dict) -> str:
 
   <section class="card"><h2>Scheduled video uploads</h2>
     {schedule_table(vid_rows, ['ID', 'Platform', 'Title', 'When'])}</section>
+
+  <div class="grid" style="margin-top:22px">
+    <div class="card"><h2>Flight watches</h2>{watch_table(fl)}
+      <div class="sub">Searches today: {_esc(fl.get('activity', {}).get('searches', 0))} ·
+      daily cap {_esc(fl.get('caps', {}).get('searches', '—'))}</div></div>
+    <div class="card"><h2>Hotel watches</h2>{watch_table(ho, '/night')}
+      <div class="sub">Searches today: {_esc(ho.get('activity', {}).get('searches', 0))}</div></div>
+  </div>
+
+  <section class="card"><h2>Alert delivery</h2>
+    <div class="sub">Channels: {_esc(', '.join(al.get('channels') or []) or '(none)')} ·
+    {_esc(al.get('total', 0))} sent</div>{alerts_html}</section>
+
+  <section class="card"><h2>Trips</h2>{trips_html}</section>
+
+  <section class="card"><h2>Crash health {crash_pill}</h2>{crash_html}</section>
 </main>
 <footer>JARVIS dashboard v{_esc(VERSION)} · read-only · no secrets are displayed</footer>
 <script>{_JS}</script>
@@ -367,6 +547,16 @@ def route(path: str, base_dir: Path | None = None) -> tuple[int, str, bytes]:
             data = collect_tasks()
         elif clean == "/api/health":
             data = collect_health(base_dir)
+        elif clean == "/api/flights":
+            data = collect_flights()
+        elif clean == "/api/hotels":
+            data = collect_hotels()
+        elif clean == "/api/alerts":
+            data = collect_alerts()
+        elif clean == "/api/trips":
+            data = collect_trips()
+        elif clean == "/api/crashes":
+            data = collect_crashes()
         elif clean == "/healthz":
             return 200, "text/plain; charset=utf-8", b"ok"
         else:
@@ -414,12 +604,19 @@ def make_server(host: str = DEFAULT_HOST, port: int = DEFAULT_PORT,
     return httpd
 
 
+@safe_tool("dashboard_control")
 def dashboard_control(parameters: dict, player=None, speak=None) -> str:
     """Voice/tool entry point: start the dashboard in a background thread."""
     global _server, _thread
     params = parameters or {}
     action = str(params.get("action", "status")).lower().strip()
-    port = int(params.get("port", DEFAULT_PORT))
+    try:
+        port = int(params.get("port", DEFAULT_PORT))
+    except (TypeError, ValueError):
+        return "port must be a number (default 8765)."
+    # 0 means "let the OS pick a free port" (used by tests and safe here).
+    if not 0 <= port <= 65535:
+        return "port must be between 0 and 65535 (0 picks a free port)."
     if action in ("start", "open"):
         if _server is not None:
             return f"📊 Dashboard already running on port {_server.server_address[1]}."
