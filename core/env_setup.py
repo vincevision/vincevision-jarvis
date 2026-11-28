@@ -8,6 +8,7 @@ Auto-runs on import.
 
 import os
 import subprocess
+import sys
 from pathlib import Path
 
 
@@ -349,17 +350,24 @@ def fix_playwright():
     except Exception:
         pass
 
-    # Try each candidate
+    # Accept a cache only if it holds a real Chromium executable. A non-empty
+    # folder is NOT proof: a failed download leaves partial files behind, and
+    # reporting ✅ there hides the problem until a browser launch fails.
+    from core.browser_check import find_chromium, install_hint
+
     for path in candidates:
         try:
-            if path.exists() and any(path.iterdir()):
+            exe = find_chromium(path)
+            if exe:
                 os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(path)
-                print(f"[ENV] Playwright ✅ {path}")
+                print(f"[ENV] Playwright ✅ {exe}")
                 return
+            if path.is_dir() and any(path.iterdir()):
+                print(f"[ENV] ⚠️  {path} exists but has no Chromium — download incomplete")
         except Exception:
             continue
 
-    # Nothing found — auto install
+    # Nothing usable — auto install with this interpreter's own playwright.
     print("[ENV] Playwright chromium not found — installing...")
     install_path = Path(f"/home/{real_user}/.cache/ms-playwright")
     try:
@@ -368,15 +376,24 @@ def fix_playwright():
             "PLAYWRIGHT_BROWSERS_PATH": str(install_path),
             "HOME": f"/home/{real_user}",
         }
+        # `python -m playwright` cannot be shadowed by a global `playwright`
+        # script from another venv or a Node install.
         subprocess.run(
-            ["playwright", "install", "chromium"],
-            check=True, timeout=120, env=env
+            [sys.executable or "python", "-m", "playwright", "install", "chromium"],
+            check=True, timeout=600, env=env
         )
-        os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(install_path)
-        print(f"[ENV] Playwright installed ✅ {install_path}")
+        exe = find_chromium(install_path)
+        if exe:
+            os.environ["PLAYWRIGHT_BROWSERS_PATH"] = str(install_path)
+            print(f"[ENV] Playwright installed ✅ {exe}")
+        else:
+            print("[ENV] ⚠️  Install command finished but no Chromium binary was found.")
+            print(f"[ENV] Run: {install_hint()}")
     except Exception as e:
         print(f"[ENV] Auto-install failed: {e}")
-        print("[ENV] Run: playwright install chromium")
+        print(f"[ENV] Run: {install_hint()}")
+        print("[ENV] On Kali/Debian, system libraries may be needed:")
+        print(f"[ENV]   {install_hint(with_deps=True)}")
 
 
 # ─────────────────────────────────────────────────────────────

@@ -486,11 +486,23 @@ ok "Number Tracer packages done"
 # ════════════════════════════════════════════════════════════════════
 step "Step 21: Installing Playwright Browsers"
 
-playwright install chromium 2>/dev/null || true
-playwright install firefox  2>/dev/null || true
-playwright install-deps     2>/dev/null || true
+# Module form: cannot be shadowed by a global `playwright` from Node/another venv.
+if python -m playwright install chromium; then
+    ok "Chromium installed"
+else
+    warn "Chromium download failed — browser agents will not work yet."
+    echo "    Retry:  python -m playwright install --with-deps chromium"
+    echo "    Diagnose: python -m playwright install --dry-run chromium"
+fi
+python -m playwright install firefox 2>/dev/null || true
+python -m playwright install-deps  2>/dev/null || true
 
-ok "Playwright browsers installed"
+# Verify the binary really exists instead of trusting the exit code alone.
+python - <<'PYCHECK' || true
+from core.browser_check import chromium_status, describe
+st = chromium_status()
+print(("✅ " if st["installed"] else "⚠️  ") + describe(st))
+PYCHECK
 
 # ════════════════════════════════════════════════════════════════════
 # STEP 22 — CREATE JARVIS DIRECTORIES

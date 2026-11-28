@@ -48,7 +48,7 @@ source venv/bin/activate          # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 
 # 4. Browser engine (for email/social/web agents)
-playwright install chromium
+python -m playwright install chromium
 
 # 5. Create config files from templates + runtime dirs
 python doctor.py --fix
@@ -261,7 +261,7 @@ a readable message instead of a dead session:
 ```
 ⚠️ hotel_manager hit a problem (ModuleNotFoundError: playwright).
    Missing dependency 'playwright'. Install it with:
-   pip install playwright && playwright install chromium
+   pip install playwright && python -m playwright install chromium
    Nothing was lost — the session is still running. Details in logs/crashes.log.
 ```
 
@@ -604,6 +604,56 @@ requirements.txt         # Python dependencies
 - **Google/Notion "not connected":** follow [docs/cloud_integrations.md](docs/cloud_integrations.md).
 - **Missing optional deps:** `pip install -r requirements.txt`, or install just
   the package `doctor.py` names.
+
+### 🌐 "Failed to install browsers" / Chromium won't download
+
+`pip install playwright` installs the **driver**, not the browser. If
+`playwright install chromium` fails, run the **module form** instead — it always
+uses this virtualenv's own Playwright, so a stray global `playwright` (from
+Node or another venv) can't shadow it:
+
+```bash
+python -m playwright install chromium
+python -m playwright install --dry-run chromium   # shows the exact URL + path
+python -m playwright install --list               # what is actually installed
+```
+
+On Kali/Debian the browser also needs system libraries:
+
+```bash
+sudo python -m playwright install --with-deps chromium
+# or: sudo apt install libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 \
+#      libcups2 libdrm2 libxkbcommon0 libxcomposite1 libxdamage1 \
+#      libxfixes3 libxrandr2 libgbm1 libasound2
+```
+
+If it still fails, the cause is almost always **network, not Playwright** —
+the CDN is blocked, a proxy interferes, or IPv6 half-works. Test the URL from
+`--dry-run` with `curl -I <url>`; if curl works but Playwright doesn't, try
+another network or disable IPv6 temporarily.
+
+**`doctor.py` now checks for the real Chromium binary**, not just the package or
+a non-empty cache folder — a half-finished download is reported as
+`⚠️ browser:chromium`, never a false ✅.
+
+### 🐍 Python version
+
+CI tests **3.11, 3.12, 3.13 and 3.14**. On 3.14, `pandas-ta` is skipped by its
+own environment marker (nothing in JARVIS imports it, so this is harmless).
+
+Python 3.14 also changed `Path.exists()` / `is_dir()` to return `False` on
+permission-denied instead of raising `PermissionError`. The uninstaller used to
+rely on that exception, which meant root-only leftovers such as
+`/etc/sudoers.d/jarvis` were silently reported as absent and skipped. It now
+probes with `os.lstat` and decides on `errno`, so the result is identical on
+every supported version.
+
+### 🐢 `pip install` hangs on "looking at multiple versions"
+
+That was the unused legacy `google-generativeai` SDK forcing pip to backtrack
+through dozens of `google-api-core` / `grpcio-status` releases and pin
+`protobuf` backwards. **It has been removed** — JARVIS uses `google-genai` only.
+If you cloned before that change, `git pull` and reinstall.
 
 ---
 

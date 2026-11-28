@@ -63,7 +63,7 @@ def check_python():
                       "Install Python 3.11 or 3.12 and recreate your virtualenv.")
     if (v.major, v.minor) < RECOMMENDED_PYTHON:
         return _check("python", "warn",
-                      f"Python {v.major}.{v.minor} works, but 3.11+ is recommended (CI tests 3.11/3.12).")
+                      f"Python {v.major}.{v.minor} works, but 3.11+ is recommended (CI tests 3.11-3.14).")
     return _check("python", "ok", f"Python {v.major}.{v.minor}.{v.micro}")
 
 
@@ -164,6 +164,30 @@ def check_dependencies(finder=None):
     return checks
 
 
+def check_browser(status=None):
+    """Verify a real Chromium binary, not just the playwright package.
+
+    `pip install playwright` succeeding does NOT mean a browser is installed,
+    and a non-empty cache folder does not either (a failed download leaves
+    partial files). This reports the difference honestly.
+    """
+    try:
+        from core.browser_check import chromium_status, install_hint
+        st = status if status is not None else chromium_status()
+    except Exception as exc:
+        return _check("browser:chromium", "warn",
+                      f"could not determine browser status ({exc})",
+                      "python -m playwright install chromium")
+    if st.get("installed"):
+        return _check("browser:chromium", "ok", st.get("executable") or "installed")
+    detail = ("cache exists but the Chromium download did not complete"
+              if st.get("stale_cache") else "not installed")
+    return _check(
+        "browser:chromium", "warn",
+        f"{detail} — browser agents (email/social/flights/hotels) will not run",
+        install_hint() + "   (Kali/Debian: add --with-deps for system libraries)")
+
+
 def run_all(base_dir=None, finder=None):
     base = Path(base_dir) if base_dir else BASE_DIR
     checks = [check_python()]
@@ -172,6 +196,7 @@ def run_all(base_dir=None, finder=None):
     checks.append(check_api_keys(base))
     checks += check_optional_configs(base)
     checks += check_dependencies(finder)
+    checks.append(check_browser())
     return checks
 
 

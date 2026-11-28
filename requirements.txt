@@ -10,7 +10,9 @@
 
 # ── Core AI ───────────────────────────────────────────────────────
 google-genai
-google-generativeai>=0.8.0
+# google-generativeai (the LEGACY SDK) was removed: nothing imports it, and
+# it pins google-api-core/protobuf backwards, which makes pip backtrack for
+# minutes and can break google-genai at runtime. Do not re-add it.
 openai
 groq>=0.9.0
 
