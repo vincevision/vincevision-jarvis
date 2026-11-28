@@ -160,6 +160,55 @@ Cloud setup walkthroughs: [docs/cloud_integrations.md](docs/cloud_integrations.m
 | "Upload this video to YouTube" / "Schedule a TikTok" | video_manager |
 | "Run these three tasks in parallel" | task_control |
 | "Start the dashboard" | dashboard_control |
+| "Find cheap flights to Dubai next month" | flight_manager |
+| "Watch NBO→LHR and alert me under $500" | flight_manager |
+
+---
+
+## ✈️ Flight Manager — cheap flights across sites
+
+One command searches **Kayak, Google Flights, Skyscanner, Momondo, Expedia,
+Kiwi, Booking.com and Trip.com**, then ranks what it finds.
+
+| Action | What it does |
+|---|---|
+| `compare` | All sites, ranked best-first, with a 🏆 best pick |
+| `search` | One site, parsed and ranked |
+| `links` | Deep links only — instant, opens nothing |
+| `flexible` | Cheapest day in a ±N-day window (keeps your trip length) |
+| `watch` / `watches` / `check_watches` | Price tracking with 🔻 drop and  target alerts |
+| `report` | Markdown comparison table (`save=true` → `reports/`) |
+| `advice` | When-to-buy guidance for a date |
+| `airports` | City → IATA lookup |
+| `deep` | Hands Google Flights to `flight_finder` for Gemini parsing |
+| `book` | Opens the site **for you to pay** — never enters card details |
+
+**It understands plain language**
+- Cities or codes: `Nairobi`, `JKIA`, `NBO` → all resolve to NBO
+- Dates: `2026-12-15`, `next friday`, `in 3 weeks`, `+10d`, `Dec 15`, `15/12/2026`
+- Filters: cabin, passengers, `stops=nonstop`, `max_price`, currency, preferred airlines
+
+**Ranking isn't just price.** Offers are scored on price *plus* stops, duration
+and your airline/baggage preferences — so a cheap 2-stop 18-hour itinerary
+correctly ranks below a slightly pricier nonstop.
+
+Set your defaults in `config/flights.json` (copy `config/flights.example.json`)
+so *"flights to Dubai"* works without naming your home airport.
+
+```
+compare Nairobi → Dubai on 2026-12-15 returning 2026-12-22, max_price 600
+flexible NBO → LHR on Dec 15, flex_days 3
+watch NBO → DXB on 2026-12-15, target 400
+```
+
+**Honest limits:** deep links follow each site's published URL pattern and are
+unit-tested offline, but were **not verified against the live sites** from the
+build sandbox (no outbound access to those hosts). Page-text parsing is
+best-effort and assumes an English locale — sites render with JavaScript and
+change markup often, so `compare` may parse fewer offers than the page shows.
+The deep links are the reliable part; the browser opens visibly so you can
+always check for yourself. No FX rates are invented — prices are reported in
+the currency the site returns.
 
 ---
 

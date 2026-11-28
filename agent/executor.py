@@ -289,6 +289,9 @@ def _call_tool(tool: str, parameters: dict, speak: Callable | None) -> str:
     elif tool == "video_manager":
         from actions.video_manager import video_manager
         return video_manager(parameters=parameters, player=None, speak=speak) or "Done."
+    elif tool == "flight_manager":
+        from actions.flight_manager import flight_manager
+        return flight_manager(parameters=parameters, player=None, speak=speak) or "Done."
     elif tool == "task_control":
         from agent.task_queue import task_control
         return task_control(parameters=parameters, player=None, speak=speak) or "Done."

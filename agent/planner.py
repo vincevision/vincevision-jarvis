@@ -236,6 +236,18 @@ dashboard_control
   action: "start" | "stop" | "status" (required)
   port: number (optional, default 8765)
 
+flight_manager
+  action: "search" | "compare" | "links" | "flexible" | "watch" | "unwatch" |
+          "watches" | "check_watches" | "report" | "advice" | "airports" |
+          "deep" | "book" | "help" (required)
+  origin / destination: city name or IATA code (Nairobi, NBO)
+  date / return_date: 2026-12-15, 'next friday', 'in 3 weeks', 'Dec 15'
+  trip: oneway | roundtrip; passengers: 1-9; cabin: economy|premium|business|first
+  stops: any | nonstop | 1stop; max_price: number; currency: USD/KES/EUR...
+  sites: comma-separated subset of kayak,google,skyscanner,momondo,expedia,kiwi,booking,trip
+  flex_days: 0-7 (flexible); target: alert price (watch); id: watch id (unwatch)
+  confirm: "FLIGHT CONFIRMED" for book (opens the site only; never enters payment)
+
 EXAMPLES:
 
 Goal: "research mechanical engineering and save it to a notepad file"
